@@ -1,9 +1,7 @@
 package com.tomykaira.constraintscala.demo
 
 import scala.swing._
-import scala.collection.mutable
 import com.tomykaira.constraintscala.Constraint
-import java.awt.Color
 import scala.swing.event.ValueChanged
 
 object Slider extends SimpleSwingApplication {
@@ -17,7 +15,7 @@ object Slider extends SimpleSwingApplication {
           val label = new Label(initialValue.toString)
           val slider = new HexSlider() { value = initialValue }
           val constraint = new Constraint[Int]({ slider.value })
-          constraint.onChange((value : Int) => {label.text = value.toString})
+          constraint.onChange((value : Any) => {label.text = value.toString})
           slider.subscribe({
             case e : ValueChanged => constraint.invalidate()
             case _                => null
@@ -31,17 +29,19 @@ object Slider extends SimpleSwingApplication {
         val blueConstraint = addColor(128)
 
         val hex = new Constraint({
-          "#" + Integer.toHexString(redConstraint.get) +
-            Integer.toHexString(greenConstraint.get) +
-            Integer.toHexString(blueConstraint.get)
+          "#" + Integer.toHexString(redConstraint.get.asInstanceOf[Int]) +
+            Integer.toHexString(greenConstraint.get.asInstanceOf[Int]) +
+            Integer.toHexString(blueConstraint.get.asInstanceOf[Int])
         })
 
         val color = new Constraint[java.awt.Color]({
-          new java.awt.Color(redConstraint.get, greenConstraint.get, blueConstraint.get)
+          new java.awt.Color(redConstraint.get.asInstanceOf[Int],
+            greenConstraint.get.asInstanceOf[Int],
+            blueConstraint.get.asInstanceOf[Int])
         })
 
-        hex.onChange((value : String) => colorCodeLabel.text = value)
-        color.onChange((value : java.awt.Color) => background = value)
+        hex.onChange((value : Any) => colorCodeLabel.text = value.toString)
+        color.onChange((value : Any) => background = value.asInstanceOf[java.awt.Color])
       }
 
       contents += colorCodeLabel
