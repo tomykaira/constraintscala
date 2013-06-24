@@ -16,10 +16,7 @@ object Slider extends SimpleSwingApplication {
           val slider = new HexSlider() { value = initialValue }
           val constraint = new Constraint[Int]({ slider.value })
           constraint.onChange((value : Any) => {label.text = value.toString})
-          slider.subscribe({
-            case e : ValueChanged => constraint.invalidate()
-            case _                => null
-          })
+          slider.reactions += { case e: ValueChanged => constraint.invalidate() }
           contents += label
           contents += slider
           constraint
