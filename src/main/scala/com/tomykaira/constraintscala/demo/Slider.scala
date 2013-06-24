@@ -15,7 +15,7 @@ object Slider extends SimpleSwingApplication {
           val label = new Label(initialValue.toString)
           val slider = new HexSlider() { value = initialValue }
           val constraint = new Constraint[Int]({ slider.value })
-          constraint.onChange((value : Any) => {label.text = value.toString})
+          constraint.onChange((value : Int) => {label.text = value.toString})
           slider.reactions += { case e: ValueChanged => constraint.invalidate() }
           contents += label
           contents += slider
@@ -26,19 +26,19 @@ object Slider extends SimpleSwingApplication {
         val blueConstraint = addColor(128)
 
         val hex = new Constraint({
-          "#" + Integer.toHexString(redConstraint.get.asInstanceOf[Int]) +
-            Integer.toHexString(greenConstraint.get.asInstanceOf[Int]) +
-            Integer.toHexString(blueConstraint.get.asInstanceOf[Int])
+          "#" + Integer.toHexString(redConstraint.get) +
+            Integer.toHexString(greenConstraint.get) +
+            Integer.toHexString(blueConstraint.get)
         })
 
         val color = new Constraint[java.awt.Color]({
-          new java.awt.Color(redConstraint.get.asInstanceOf[Int],
-            greenConstraint.get.asInstanceOf[Int],
-            blueConstraint.get.asInstanceOf[Int])
+          new java.awt.Color(redConstraint.get,
+            greenConstraint.get,
+            blueConstraint.get)
         })
 
-        hex.onChange((value : Any) => colorCodeLabel.text = value.toString)
-        color.onChange((value : Any) => background = value.asInstanceOf[java.awt.Color])
+        hex.onChange((value : String) => colorCodeLabel.text = value)
+        color.onChange((value : java.awt.Color) => background = value)
       }
 
       contents += colorCodeLabel

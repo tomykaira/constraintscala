@@ -2,24 +2,24 @@ package com.tomykaira.constraintscala
 
 class Constraint[+A](getter: => A) {
   type Node = Constraint[Any]
-  var callbackList = List[Any => Unit]()
   val graph = ConstraintGraph
-  var cachedValue: Option[Any] = None
-  var cachedAt: Option[Int] = None
+  private[this] var callbackList = List[A => Unit]()
+  private[this] var cachedValue: Option[A] = None
+  private[this] var cachedAt: Option[Int] = None
 
   ConstraintGraph.register(this)
 
-  def cache(value: Any) {
+  private[this] def cache(value: A) {
     cachedValue = Some(value)
     cachedAt = Some(graph.timestamp)
   }
 
-  def onChange(callback: Any => Unit) {
+  def onChange(callback: A => Unit) {
     callbackList = callback :: callbackList
     callback(get)
   }
 
-  def get : Any = ConstraintGraph.onStack[Any](this, {
+  def get : A = ConstraintGraph.onStack[A](this, {
     cachedValue.getOrElse({
       val v = getter
       cache(v)
