@@ -1,9 +1,8 @@
 package com.tomykaira.constraintscala
 
-class Constraint[+A](getter: => A) {
+class Constraint[+A](getter: => A) extends Notifier[A] {
   type Node = Constraint[Any]
   val graph = ConstraintGraph
-  private[this] var callbackList = List[A => Unit]()
   private[this] var cachedValue: Option[A] = None
   private[this] var cachedAt: Option[Int] = None
 
@@ -12,11 +11,6 @@ class Constraint[+A](getter: => A) {
   private[this] def cache(value: A) {
     cachedValue = Some(value)
     cachedAt = Some(graph.timestamp)
-  }
-
-  def onChange(callback: A => Unit) {
-    callbackList = callback :: callbackList
-    callback(get)
   }
 
   def get : A = ConstraintGraph.onStack[A](this, {
@@ -30,7 +24,7 @@ class Constraint[+A](getter: => A) {
     cachedValue = None
     cachedAt = None
     dependants.foreach(node => node.invalidate())
-    callbackList.foreach(callback => callback(get))
+    invokeCallbacks()
   }
 
   private def dependants: Seq[Node] = {

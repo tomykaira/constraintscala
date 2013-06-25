@@ -1,0 +1,17 @@
+package com.tomykaira.constraintscala
+
+trait FSM[S] extends Notifier[S] {
+  var state: S = _
+  val transitions: List[Transition[S]]
+  def get: S = state
+
+  def changeState(from: S, to: S) {
+    if(state == from) {
+      state = to
+      invokeCallbacks()
+    }
+  }
+
+  def transition[E <: swing.event.Event](source: scala.swing.Reactor, from: S, to: S)(implicit m: Manifest[E]) =
+    new Transition[S](m.runtimeClass, this, source, from, to)
+}
