@@ -46,8 +46,7 @@ object OtherSquare extends SimpleSwingApplication {
       registerBackgroundCallback(fsmA, b)
       registerBackgroundCallback(fsmB, a)
 
-      contents += a
-      contents += b
+      contents += (a, b)
     }
   }
 }
