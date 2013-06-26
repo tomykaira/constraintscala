@@ -1,13 +1,14 @@
 package com.tomykaira.constraintscala
 
-import com.tomykaira.constraintscala.graph.{Graph}
+import com.tomykaira.constraintscala.graph.Graph
 
-object ConstraintGraph extends Graph[Constraint[Any]] {
+object DependencyGraph extends Graph[ChainedCache] {
+  type Node = ChainedCache
   var timestamp: Int = 0
 
   def countUp() { timestamp += 1 }
 
-  def onStack[A](constraint: Constraint[Any], value: => A): A = {
+  def onStack[A](constraint: Node, value: => A): A = {
     if (stack.isEmpty)
       countUp()
     registerDependency(constraint)
@@ -19,16 +20,16 @@ object ConstraintGraph extends Graph[Constraint[Any]] {
     }
   }
 
-  private var stack: List[Constraint[Any]] = List()
+  private var stack: List[Node] = List()
 
-  private def registerDependency(constraint: Constraint[Any]) {
+  private def registerDependency(constraint: Node) {
     stack match {
       case last :: _ => drawEdge(constraint, last)
       case List() => ()
     }
   }
 
-  private def pushStack(constraint: Constraint[Any]) {
+  private def pushStack(constraint: Node) {
     stack = constraint :: stack
   }
 

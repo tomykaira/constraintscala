@@ -1,7 +1,7 @@
 package com.tomykaira.constraintscala.demo
 
 import scala.swing._
-import com.tomykaira.constraintscala.{Transition, FSM}
+import com.tomykaira.constraintscala.{Notifier, Binding, Transition, FSM}
 import scala.swing.event.{MouseReleased, MousePressed, MouseExited, MouseEntered}
 
 object OtherSquare extends SimpleSwingApplication {
@@ -26,11 +26,11 @@ object OtherSquare extends SimpleSwingApplication {
       }
 
       val registerBackgroundCallback = (fsm: FSM[AreaState], area: TextField) => {
-        fsm.onChange({
-          case Idle()    => area.background = java.awt.Color.black
-          case Hover()   => area.background = java.awt.Color.green
-          case Pressed() => area.background = java.awt.Color.red
-        })
+        Binding.background(area, fsm.convert[java.awt.Color]({
+          case Idle()    => java.awt.Color.black
+          case Hover()   => java.awt.Color.green
+          case Pressed() => java.awt.Color.red
+        }))
       }
 
       val a = new TextField("TextField A") {

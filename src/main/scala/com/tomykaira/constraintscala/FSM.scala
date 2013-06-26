@@ -21,4 +21,11 @@ trait FSM[S] extends Notifier[S] {
 
   def transition[E <: swing.event.Event](source: scala.swing.Reactor, from: S, to: S)(implicit m: Manifest[E]) =
     new Transition[S](m.runtimeClass, this, source, from, to)
+
+  def convert[T](method: PartialFunction[S, T]): Constraint[T] = {
+    val constraint = new Constraint[T]({ method(get) })
+    onChange(s => constraint.invalidate())
+    constraint
+  }
+
 }
