@@ -6,10 +6,13 @@ trait FSM[S] extends Notifier[S] {
   def get: S = state
 
   def changeState(from: S, to: S) {
-    if(state == from) {
-      state = to
-      invokeCallbacks()
-    }
+    if(state == from)
+      changeStateTo(to)
+  }
+
+  def changeStateTo(to: S) {
+    state = to
+    invokeCallbacks()
   }
 
   def transition[E <: swing.event.Event](source: scala.swing.Reactor, from: S, to: S)(implicit m: Manifest[E]) =
