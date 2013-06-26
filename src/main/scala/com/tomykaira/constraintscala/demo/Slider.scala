@@ -1,10 +1,25 @@
 package com.tomykaira.constraintscala.demo
 
 import scala.swing._
-import com.tomykaira.constraintscala.Constraint
+import com.tomykaira.constraintscala.{Binding, Constraint}
 import scala.swing.event.ValueChanged
 
 object Slider extends SimpleSwingApplication {
+  class HexSlider extends Slider {
+    min = 0
+    max = 255
+  }
+
+  class RGBColor(val r: Int, val g: Int, val b: Int) {
+    override def toString =
+      "#" + Integer.toHexString(r) +
+        Integer.toHexString(g) +
+        Integer.toHexString(b)
+  }
+
+  implicit def awtColor(color: RGBColor): java.awt.Color =
+    new java.awt.Color(color.r, color.g, color.b)
+
   def top: Frame = new MainFrame {
     title = "Slider Demo"
 
@@ -15,7 +30,7 @@ object Slider extends SimpleSwingApplication {
           val label = new Label(initialValue.toString)
           val slider = new HexSlider() { value = initialValue }
           val constraint = new Constraint[Int]({ slider.value })
-          constraint.onChange((value : Int) => {label.text = value.toString})
+          Binding.text(label, constraint)
           slider.reactions += { case e: ValueChanged => constraint.invalidate() }
           contents += label
           contents += slider
@@ -25,29 +40,16 @@ object Slider extends SimpleSwingApplication {
         val greenConstraint = addColor(128)
         val blueConstraint = addColor(128)
 
-        val hex = new Constraint({
-          "#" + Integer.toHexString(redConstraint.get) +
-            Integer.toHexString(greenConstraint.get) +
-            Integer.toHexString(blueConstraint.get)
+        val color = new Constraint({
+          new RGBColor(redConstraint.get, greenConstraint.get, blueConstraint.get)
         })
 
-        val color = new Constraint[java.awt.Color]({
-          new java.awt.Color(redConstraint.get,
-            greenConstraint.get,
-            blueConstraint.get)
-        })
-
-        hex.onChange((value : String) => colorCodeLabel.text = value)
-        color.onChange((value : java.awt.Color) => background = value)
+        Binding.text(colorCodeLabel, color)
+        color.onChange(background = _)
       }
 
       contents += colorCodeLabel
       contents += coloredPanel
     }
-  }
-
-  class HexSlider extends Slider {
-    min = 0
-    max = 255
   }
 }
