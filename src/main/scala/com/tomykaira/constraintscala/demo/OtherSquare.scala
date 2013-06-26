@@ -7,7 +7,7 @@ import scala.swing.event.{MouseReleased, MousePressed, MouseExited, MouseEntered
 object OtherSquare extends SimpleSwingApplication {
 
   def top: Frame = new MainFrame {
-    title = "Slider Demo"
+    title = "Other Square Demo"
 
     contents = new BoxPanel(Orientation.Vertical) {
 
