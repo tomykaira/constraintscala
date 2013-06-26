@@ -10,6 +10,10 @@ trait FSM[S] extends Notifier[S] {
       changeStateTo(to)
   }
 
+  def setOnChange[V](setter: V => Unit, stateToValue: S => V) {
+    onChange(s => setter(stateToValue(s)))
+  }
+
   def changeStateTo(to: S) {
     state = to
     invokeCallbacks()

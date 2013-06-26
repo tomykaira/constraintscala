@@ -9,8 +9,6 @@ import com.tomykaira.constraintscala.{Transition, FSM}
 import scala.concurrent.future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Success, Try}
-import java.awt.GridLayout
-import scala.collection.mutable
 
 object Console extends SimpleSwingApplication {
   def top: Frame = new MainFrame {
@@ -42,14 +40,12 @@ object Console extends SimpleSwingApplication {
           }
         }
       }
-      execFSM.onChange({
-        case _: Running => commandArea.editable = false
-        case _ => commandArea.editable = true
-      })
-      execFSM.onChange({
-        case _: Running => runButton.enabled = false
-        case _ => runButton.enabled = true
-      })
+      val isRunningMatcher: PartialFunction[ExecutionState, Boolean] = {
+        case _: Running => false
+        case _ => true
+      }
+      execFSM.setOnChange[Boolean](commandArea.editable = _, isRunningMatcher)
+      execFSM.setOnChange[Boolean](runButton.enabled = _, isRunningMatcher)
       execFSM.onChange({
         case _: Running => resultArea.background = java.awt.Color.WHITE
         case _: Completed => resultArea.background = java.awt.Color.LIGHT_GRAY
