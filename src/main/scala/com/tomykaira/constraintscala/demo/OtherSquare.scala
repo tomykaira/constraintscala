@@ -40,8 +40,6 @@ object OtherSquare extends SimpleSwingApplication {
         listenTo( mouse.clicks, mouse.moves )
       }
 
-      a.reactions += {case e if MousePressed.getClass.isInstance(e) => println("Exit") }
-
       val fsmA = createStateFor(a)
       val fsmB = createStateFor(b)
 
