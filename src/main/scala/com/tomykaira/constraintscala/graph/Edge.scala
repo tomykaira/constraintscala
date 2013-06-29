@@ -1,6 +1,3 @@
 package com.tomykaira.constraintscala.graph
 
-class Edge[N](aFrom: N, aTo: N) {
-  val from = aFrom
-  val to   = aTo
-}
+case class Edge[N](from: N, to: N)
