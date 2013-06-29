@@ -5,7 +5,7 @@ import javax.swing.border.BevelBorder
 import scala.swing.event.ButtonClicked
 import scala.sys.process.{ProcessIO, Process}
 import scala.io.Source
-import com.tomykaira.constraintscala.{Binding, Transition, FSM}
+import com.tomykaira.constraintscala.{Constraint, Binding, Transition, FSM}
 import scala.concurrent.future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Success, Try}
@@ -26,16 +26,22 @@ object Console extends SimpleSwingApplication {
         state = Completed()
         val transitions: List[Transition[ExecutionState]] = List()
       }
+      val outputBuffer = new StringBuilder
+      val outputConstraint = new Constraint[String]({ outputBuffer.toString() })
+      val insertOutput = (str: String) => {
+        outputBuffer append str+"\n"
+        outputConstraint.invalidate()
+      }
+      Binding.text(resultArea, outputConstraint)
       val runButton = new Button("Run") {
         reactions += {
           case e: ButtonClicked => {
-            resultArea.text = "Running...\n"
+            insertOutput("Running...")
             new ProcessManager(commandArea.text,
               {
                 case Success(c) if c == 0 => execFSM.changeState(Running(), Completed())
                 case _ => execFSM.changeState(Running(), Failed())
-              },
-              line => resultArea append line+"\n").start()
+              }, insertOutput).start()
             execFSM.changeStateTo(Running())
           }
         }
