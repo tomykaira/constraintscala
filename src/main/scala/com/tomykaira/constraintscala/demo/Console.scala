@@ -5,7 +5,7 @@ import javax.swing.border.BevelBorder
 import scala.swing.event.ButtonClicked
 import scala.sys.process.{ProcessIO, Process}
 import scala.io.Source
-import com.tomykaira.constraintscala.{Transition, FSM}
+import com.tomykaira.constraintscala.{Binding, Transition, FSM}
 import scala.concurrent.future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Success, Try}
@@ -40,26 +40,30 @@ object Console extends SimpleSwingApplication {
           }
         }
       }
-      val isRunningMatcher: PartialFunction[ExecutionState, Boolean] = {
-        case _: Running => false
-        case _ => true
-      }
-      execFSM.setOnChange[Boolean](commandArea.editable = _, isRunningMatcher)
-      execFSM.setOnChange[Boolean](runButton.enabled = _, isRunningMatcher)
-      execFSM.onChange({
-        case _: Running => resultArea.background = java.awt.Color.WHITE
-        case _: Completed => resultArea.background = java.awt.Color.LIGHT_GRAY
-        case _: Failed => resultArea.background = java.awt.Color.RED
-      })
+      execFSM.onChange(s => commandArea.editable = !s.running)
+      execFSM.onChange(s => runButton.enabled = !s.running)
+      Binding.background(resultArea, execFSM.convert[java.awt.Color](_.color))
       contents += (commandArea, runButton, resultArea)
     }
   }
 }
 
-sealed trait ExecutionState
-case class Running() extends ExecutionState
-case class Completed() extends ExecutionState
-case class Failed() extends ExecutionState
+sealed trait ExecutionState {
+  val color: java.awt.Color
+  val running: Boolean
+}
+case class Running() extends ExecutionState {
+  val color = java.awt.Color.WHITE
+  val running = true
+}
+case class Completed() extends ExecutionState{
+  val color = java.awt.Color.LIGHT_GRAY
+  val running = false
+}
+case class Failed() extends ExecutionState{
+  val color = java.awt.Color.RED
+  val running = false
+}
 
 class ProcessManager(command: String, onExit: Try[Int] => Unit, out: String => Unit) {
   def start() {
