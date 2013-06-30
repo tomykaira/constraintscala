@@ -1,4 +1,4 @@
-package com.tomykaira.constraintscala.uchronie
+package com.tomykaira.uchronie
 
 import org.scalatest.{BeforeAndAfter, FunSpec}
 import org.scalatest.matchers.ShouldMatchers
@@ -26,6 +26,13 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
       val commit3 = createCommit("foo", "bar", "commit3")
       val commit4 = createCommit("foo", "baz", "commit4")
       repository.listCommits(commit1.getId, commit4.getId) should equal (List(commit4, commit3, commit2))
+    }
+  }
+
+  describe("abbreviate") {
+    it("should abbreviate ObjectID to human readable ID") {
+      val commit = firstCommit
+      repository.abbreviate(commit.getId).name should have length 7
     }
   }
 }

@@ -1,4 +1,4 @@
-package com.tomykaira.constraintscala.uchronie
+package com.tomykaira.uchronie
 
 import java.io.{PrintWriter, File}
 import com.tomykaira.uchronie.GitRepository
