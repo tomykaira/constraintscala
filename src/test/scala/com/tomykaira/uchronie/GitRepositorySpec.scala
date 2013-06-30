@@ -2,6 +2,7 @@ package com.tomykaira.uchronie
 
 import org.scalatest.{BeforeAndAfter, FunSpec}
 import org.scalatest.matchers.ShouldMatchers
+import org.eclipse.jgit.revwalk.RevCommit
 
 class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -33,6 +34,36 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
     it("should abbreviate ObjectID to human readable ID") {
       val commit = firstCommit
       repository.abbreviate(commit.getId).name should have length 7
+    }
+  }
+
+  describe("resolve") {
+    it("should expand abbreviated ObjectId to the internal expression") {
+      val commit = firstCommit
+      val shortSha1 = repository.abbreviate(commit.getId).name
+      val id = repository.resolve(shortSha1)
+      id.get should equal (commit.getId)
+    }
+
+    it("should return None for empty string") {
+      repository.resolve("") should equal (None)
+    }
+
+    it("should return None if commit not found") {
+      repository.resolve("0123456") should equal (None)
+    }
+
+    // This test creates many commits.  Slow.
+    it("should return None if commit is ambiguous") {
+      def short(commit: RevCommit) = commit.getId.name.substring(0,2)
+      val commit = firstCommit
+      var similarCommit = createCommit("file", "xxxxxx", "trying")
+
+      while (short(commit) != short(similarCommit)) {
+        similarCommit = createCommit("file", "At " + System.nanoTime().toString, "trying")
+      }
+      val id = repository.resolve(short(commit))
+      id should equal (None)
     }
   }
 }

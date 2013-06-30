@@ -5,6 +5,7 @@ import java.io.File
 import org.eclipse.jgit.revwalk.{RevCommit, RevWalk}
 import org.eclipse.jgit.lib.{AbbreviatedObjectId, AnyObjectId, ObjectId}
 import scala.collection.JavaConverters.asScalaIteratorConverter
+import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 class GitRepository(rootPath: File) {
   val repository = new FileRepositoryBuilder().
@@ -22,4 +23,14 @@ class GitRepository(rootPath: File) {
 
   def abbreviate(objectId: AnyObjectId): AbbreviatedObjectId =
     repository.getObjectDatabase.newReader.abbreviate(objectId)
+
+  def resolve(sha1: String): Option[ObjectId] = {
+    if (sha1.isEmpty)
+      return None
+    val candidates = repository.getObjectDatabase.newReader.resolve(AbbreviatedObjectId.fromString(sha1))
+    if (candidates.size() == 1)
+      Some(candidates.asScala.head)
+    else
+      None
+  }
 }
