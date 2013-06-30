@@ -84,5 +84,12 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
       val newCommit = repository.updateComment(first, comment)
       newCommit.right.value.getFullMessage should equal (secondComment)
     }
+
+    it("should succeed to cherry-pick with 3 commits") {
+      val first = firstCommit
+      createCommit("2nd")
+      createCommit("3rd")
+      repository.updateComment(first, comment) should be ('right)
+    }
   }
 }

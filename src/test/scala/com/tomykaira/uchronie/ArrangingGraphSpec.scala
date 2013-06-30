@@ -20,5 +20,16 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       val graph = original.updateComment(target, "New 3rd").right.value
       graph.commits.map(_.getFullMessage) should equal (List("4th", "New 3rd", "2nd"))
     }
+
+    it("should include all when the first is updated") {
+      val start = createCommit("1st")
+      val target = createCommit("2nd")
+      createCommit("3rd")
+      val end = createCommit("4th")
+      val original = repository.listCommits(start, end)
+      val graph = original.updateComment(target, "New")
+      println(graph)
+      graph.right.value.commits.map(_.getFullMessage) should equal (List("4th", "3rd", "New"))
+    }
   }
 }
