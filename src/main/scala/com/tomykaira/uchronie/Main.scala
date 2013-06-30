@@ -2,6 +2,7 @@ package com.tomykaira.uchronie
 
 import scala.swing._
 import javax.swing.table.DefaultTableModel
+import java.io.File
 
 object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
@@ -34,5 +35,22 @@ object Main extends SimpleSwingApplication {
     contents = new SplitPane(Orientation.Vertical,
       new SplitPane(Orientation.Horizontal, commitsTable, comment),
       new SplitPane(Orientation.Horizontal, changedFiles, changes))
+  }
+
+  var repository: GitRepository = _
+  var start: String = _
+  var end: String = _
+
+  override def main(args: Array[String]) {
+    new ArgumentParser(args).parse match {
+      case Left(e) =>
+        println(e)
+        sys.exit(1)
+      case Right(parsed) =>
+        repository = new GitRepository(parsed.repository)
+        start = parsed.start
+        end = parsed.end
+    }
+    super.main(args)
   }
 }
