@@ -76,5 +76,13 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
       val newCommit = repository.updateComment(commit, comment)
       newCommit.right.value.getFullMessage should equal (comment)
     }
+
+    it("should return the rebased last commit") {
+      val secondComment = "second"
+      val first  = firstCommit
+      createCommit("file", "content", secondComment)
+      val newCommit = repository.updateComment(first, comment)
+      newCommit.right.value.getFullMessage should equal (secondComment)
+    }
   }
 }
