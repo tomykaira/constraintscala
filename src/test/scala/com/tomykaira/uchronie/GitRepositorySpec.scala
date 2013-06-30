@@ -3,6 +3,7 @@ package com.tomykaira.uchronie
 import org.scalatest.{BeforeAndAfter, FunSpec}
 import org.scalatest.matchers.ShouldMatchers
 import org.eclipse.jgit.revwalk.RevCommit
+import org.scalatest.EitherValues._
 
 class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -64,6 +65,16 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
       }
       val id = repository.resolve(short(commit))
       id should equal (None)
+    }
+  }
+
+  describe("update commit comment") {
+    val comment = "Hello New World"
+
+    it("should change comment of existing commit") {
+      val commit = firstCommit
+      val newCommit = repository.updateComment(commit, comment)
+      newCommit.right.value.getFullMessage should equal (comment)
     }
   }
 }

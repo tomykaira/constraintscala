@@ -6,6 +6,8 @@ import org.eclipse.jgit.revwalk.{RevCommit, RevWalk}
 import org.eclipse.jgit.lib.{AbbreviatedObjectId, AnyObjectId, ObjectId}
 import scala.collection.JavaConverters.asScalaIteratorConverter
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+import org.eclipse.jgit.api._
+import scala.Some
 
 class GitRepository(rootPath: File) {
   val repository = new FileRepositoryBuilder().
@@ -33,4 +35,17 @@ class GitRepository(rootPath: File) {
     else
       None
   }
+
+  def git: Git = new Git(repository)
+
+  def updateComment(commit: RevCommit, message: String): Either[String, RevCommit] = {
+    val temporaryBranchName = "temp"
+    val command = git.checkout.setStartPoint(commit).setName(temporaryBranchName).setCreateBranch(true)
+    command.call()
+    if (command.getResult.getStatus != CheckoutResult.Status.OK)
+      return Left("checkout failed")
+
+    Right(git.commit.setAmend(true).setMessage(message).call())
+  }
+
 }
