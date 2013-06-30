@@ -18,20 +18,16 @@ class CommitsTable(repository: GitRepository, start: ObjectId, end: ObjectId) ex
 
   peer.getColumnModel.getColumn(0).setMaxWidth(100)
 
-  val rows = repository.listCommits(start, end)
+  val graph = repository.listCommits(start, end)
   val selectedCommit = new Constraint[Option[RevCommit]]({
-    val row = peer.getSelectedRow
-    if (rows.indices.contains(row))
-      Some(rows(row))
-    else
-      None
+    graph(peer.getSelectedRow)
   })
 
   reactions += {
     case e: TableRowsSelected if !e.adjusting => selectedCommit.invalidate()
   }
 
-  rows.foreach(commit =>
+  graph.commits.foreach(commit =>
     model addRow new CommitDecorator(commit).tableRow(repository)
   )
 }

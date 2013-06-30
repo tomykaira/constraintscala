@@ -16,11 +16,11 @@ class GitRepository(rootPath: File) {
     findGitDir().
     build()
 
-  def listCommits(start: ObjectId, end: ObjectId): Seq[RevCommit] = {
+  def listCommits(start: ObjectId, end: ObjectId): ArrangingGraph = {
     val walk = new RevWalk(repository)
     walk.markStart(walk.parseCommit(end))
     walk.markUninteresting(walk.parseCommit(start))
-    walk.iterator().asScala.toList
+    new ArrangingGraph(this, start, walk.iterator().asScala.toList)
   }
 
   def abbreviate(objectId: AnyObjectId): AbbreviatedObjectId =
@@ -52,7 +52,7 @@ class GitRepository(rootPath: File) {
     git.commit.setAmend(true).setMessage(message).call()
 
     val pickCommand = git.cherryPick
-    orphans.foreach(c => pickCommand.include(c.getId))
+    orphans.commits.foreach(c => pickCommand.include(c.getId))
     val result = pickCommand.call()
     if (result.getStatus != CherryPickResult.CherryPickStatus.OK)
       return Left("Cherry-pick failed")

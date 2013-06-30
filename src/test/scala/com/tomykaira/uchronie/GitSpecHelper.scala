@@ -52,6 +52,9 @@ trait GitSpecHelper {
     commit
   }
 
+  def createCommit(message: String): RevCommit =
+    createCommit("testFile", message, message)
+
   def firstCommit =
     createCommit("test", "Hello World", "First Commit")
 
