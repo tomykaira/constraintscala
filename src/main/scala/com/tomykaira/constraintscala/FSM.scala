@@ -10,6 +10,11 @@ trait FSM[S] extends Notifier[S] {
       changeStateTo(to)
   }
 
+  def changeState(map: PartialFunction[S,S]) {
+    if (map.isDefinedAt(get))
+      changeStateTo(map(get))
+  }
+
   def setOnChange[V](setter: V => Unit, stateToValue: S => V) {
     onChange(s => setter(stateToValue(s)))
   }

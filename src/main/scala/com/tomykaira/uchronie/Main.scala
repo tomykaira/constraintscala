@@ -16,6 +16,12 @@ object Main extends SimpleSwingApplication {
 
     }
     val comment = new CommentArea(commitsTable.selectedCommit)
+    comment.editFSM.onChange({
+      case comment.Committing(commit, message) =>
+        repository.updateComment(commit, message)
+        comment.editFSM.changeStateTo(comment.Committed())
+      case _ =>
+    })
     val changes = new TextArea() {
       editable = false
       text = "Changes"
