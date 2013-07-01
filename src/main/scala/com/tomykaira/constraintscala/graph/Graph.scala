@@ -12,7 +12,6 @@ trait Graph[N] {
     if (edges.find(e => e.from == from && e.to == to).isEmpty) {
       val edge = new Edge[N](from, to)
       edges = edge :: edges
-      println(edge)
     }
   }
 
