@@ -45,10 +45,10 @@ object Main extends SimpleSwingApplication {
             case e: ButtonClicked => comment.editFSM.startCommit()
           }
         }
-        contents += new Button("Fixup") {
+        contents += new Button("Squash") {
           reactions += {
             case e: ButtonClicked =>
-              commitsTable.selectedRange.get.fixup() match {
+              commitsTable.selectedRange.get.squash() match {
                 case Left(err) =>
                   Dialog.showMessage(title = "Error", message = err)
                 case Right(next) =>

@@ -51,6 +51,10 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     finishUpdate(applyCommits(common, todo))
   }
 
+  def squash(range: GraphRange): Either[String, ArrangingGraph] = {
+    Right(this)
+  }
+
   // commits should be ordered from old to new
   private def applyCommits(first: RevCommit, commits: List[RevCommit]): Either[String, RevCommit] = {
     commits.foldLeft[Either[String, RevCommit]](Right(first))(
@@ -76,8 +80,8 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
 }
 
 class GraphRange(val graph: ArrangingGraph, val commits: List[RevCommit]) {
-  def fixup(): Either[String, ArrangingGraph] = {
-    Left("Not Implemented")
+  def squash(): Either[String, ArrangingGraph] = {
+    graph.squash(this)
   }
 
   def isEmpty: Boolean = commits.isEmpty

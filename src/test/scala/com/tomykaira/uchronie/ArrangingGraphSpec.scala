@@ -133,4 +133,17 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       repository.repository.resolve(Constants.HEAD) should equal (commits.last.getId)
     }
   }
+
+  describe("squash") {
+    it("should do nothing if no commit is selected") {
+      new RangeFixture {
+        graph.selectRange(Seq()).squash().right.value should equal (graph)
+      }
+    }
+    it("should do nothing if 1 commit is selected") {
+      new RangeFixture {
+        graph.selectRange(Seq(2)).squash().right.value should equal (graph)
+      }
+    }
+  }
 }
