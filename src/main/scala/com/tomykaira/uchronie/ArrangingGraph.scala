@@ -28,11 +28,12 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     } yield repository.listCommits(start, last)
   }
 
-  def selectRange(values: Seq[Int]) =
-    new GraphRange(this, List())
+  def selectRange(rows: Seq[Int]) = {
+    val selected = rows.map(i => this.commits(i)).toList
+    new GraphRange(this, selected)
+  }
 
-  def contains(range: GraphRange): Boolean =
-    true
+  def contains(range: GraphRange): Boolean = range.graph == this
 
   def reorder(range: GraphRange, insertTo: Int): Either[String, ArrangingGraph] = {
     Left("Not Implemented")

@@ -41,4 +41,46 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       graph.right.value.commits.map(_.getFullMessage) should equal (List("3rd", "New"))
     }
   }
+
+  trait RangeFixture {
+    val commits = List(
+      createCommit("A", "1st", "1st"),
+      createCommit("B", "2nd", "2nd"),
+      createCommit("C", "3rd", "3rd"),
+      createCommit("D", "4th", "4th"))
+    val graph = repository.listCommits(commits.head, commits.last)
+  }
+
+  describe("selectRange") {
+    it("should refer original graph") {
+      new RangeFixture {
+        val range = graph.selectRange(Seq())
+        range.graph should equal (graph)
+      }
+    }
+    it("should have no commit if range is empty") {
+      new RangeFixture {
+        val range = graph.selectRange(Seq())
+        range.commits should have length 0
+      }
+    }
+    it("should have 1 commit in range") {
+      new RangeFixture {
+        val range = graph.selectRange(Seq(0))
+        range.commits should equal (List(commits.last))
+      }
+    }
+    it("should have 2 commits in range") {
+      new RangeFixture {
+        val range = graph.selectRange(Seq(0,1))
+        range.commits should equal (List(commits(3), commits(2)))
+      }
+    }
+    it("should have 2 commits not in sequence") {
+      new RangeFixture {
+        val range = graph.selectRange(Seq(0,2))
+        range.commits should equal (List(commits(3), commits(1)))
+      }
+    }
+  }
 }
