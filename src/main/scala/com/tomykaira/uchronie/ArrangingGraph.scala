@@ -19,7 +19,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
   }
 
   def updateComment(target: RevCommit, message: String): Either[String, ArrangingGraph] = {
-    for { // FIXME
+    val result = for { // FIXME
       index <- (commits.indexOf(target) match {
         case -1 => Left("Target " + target.getName + " not included in current list")
         case i => Right(i)
@@ -27,9 +27,10 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
       orphans <- Right(commits.take(index)).right
       _ <- Right(repository.resetHard(target)).right
       newHead <- Right(repository.amendMessage(message)).right
-      last <- orphans.foldRight[Either[String, RevCommit]](Right(newHead))(
+      newLast <- orphans.foldRight[Either[String, RevCommit]](Right(newHead))(
         (c, prev) => prev.right.flatMap(_ => repository.cherryPick(c))).right
-    } yield repository.listCommits(start, last)
+    } yield repository.listCommits(start, newLast)
+    result.left.map({ err => repository.resetHard(last); err })
   }
 
   def selectRange(rows: Seq[Int]) = {
@@ -51,7 +52,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     todo.foldLeft[Either[String, RevCommit]](Right(common))(
       (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c))) match {
       case Left(err) =>
-        repository.resetHard(commits.headOption.getOrElse(startCommit))
+        repository.resetHard(last)
         Left(err)
       case Right(newLast) =>
         Right(repository.listCommits(start, newLast))
