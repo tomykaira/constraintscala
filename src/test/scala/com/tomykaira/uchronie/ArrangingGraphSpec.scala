@@ -30,5 +30,15 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       val graph = original.updateComment(target, "New")
       graph.right.value.commits.map(_.getFullMessage) should equal (List("4th", "3rd", "New"))
     }
+
+    it("should inherit range after updated") {
+      val start = createCommit("1st")
+      val target = createCommit("2nd")
+      val end = createCommit("3rd")
+      createCommit("4th")
+      val original = repository.listCommits(start, end)
+      val graph = original.updateComment(target, "New")
+      graph.right.value.commits.map(_.getFullMessage) should equal (List("3rd", "New"))
+    }
   }
 }

@@ -44,18 +44,26 @@ class GitRepository(rootPath: File) {
   def updateComment(commit: RevCommit, message: String): Either[String, RevCommit] = {
     val temporaryBranchName = "temp" + System.nanoTime()
     val orphans = listCommits(commit, last) // TODO: use range last
-    val command = git.checkout.setStartPoint(commit).setName(temporaryBranchName).setCreateBranch(true)
-    command.call()
-    if (command.getResult.getStatus != CheckoutResult.Status.OK)
-      return Left("checkout failed")
-
-    val newHead = git.commit.setAmend(true).setMessage(message).call()
-
-    orphans.commits.foldRight[Either[String, RevCommit]](Right(newHead))(
-      (c, prev) => prev.fold(err => Left(err), _ => cherryPick(c)))
+    checkoutAs(commit, temporaryBranchName).right.map { _ =>
+      val newHead = amendMessage(message)
+      orphans.commits.foldRight[Either[String, RevCommit]](Right(newHead))(
+        (c, prev) => prev.right.map(_ => cherryPick(c)).joinRight)
+    }.joinRight
   }
 
-  private def cherryPick(commit: RevCommit): Either[String, RevCommit] with Product with Serializable = {
+  def checkoutAs(commit: RevCommit, newBranchName: String): Either[String, RevCommit] = {
+    val command = git.checkout.setStartPoint(commit).setName(newBranchName).setCreateBranch(true)
+    command.call()
+    if (command.getResult.getStatus == CheckoutResult.Status.OK)
+      Right(commit)
+    else
+      Left("checkout failed")
+  }
+
+  def amendMessage(message: String): RevCommit =
+    git.commit.setAmend(true).setMessage(message).call()
+
+  def cherryPick(commit: RevCommit): Either[String, RevCommit] with Product with Serializable = {
     val result = git.cherryPick().include(commit.getId).call()
     if (result.getStatus != CherryPickResult.CherryPickStatus.OK)
       Left("Cherry-pick failed at " + commit.getName)
