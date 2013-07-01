@@ -22,4 +22,7 @@ class Constraint[+A](getter: => A) extends Notifier[A] with ChainedCache {
     super[ChainedCache].invalidate()
     invokeCallbacks()
   }
+
+  def convert[T](method: A => T): Constraint[T] =
+    new Constraint[T]({ method(get) })
 }

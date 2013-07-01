@@ -8,6 +8,7 @@ import scala.swing.event.{TableRowsSelected, SelectionChanged}
 import com.tomykaira.constraintscala.{StaticConstraint, Constraint}
 import org.eclipse.jgit.diff.DiffEntry
 import scala.swing.ListView.Renderer
+import javax.swing.border.{LineBorder, EmptyBorder}
 
 object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
@@ -17,25 +18,10 @@ object Main extends SimpleSwingApplication {
     val graphConstraint = new StaticConstraint[ArrangingGraph](graph)
     val commitsTable = new CommitsTable(graphConstraint)
 
-    val changedFiles = new ListView[DiffEntry]() {
-      commitsTable.selectedCommit.onChange({
-        case Some(commit) => listData = repository.diff(commit); repaint()
-        case None => listData = Nil; repaint()
-      })
-
-      renderer = new Renderer[DiffEntry] {
-        def componentFor(list: ListView[_], isSelected: Boolean, focused: Boolean, diff: DiffEntry, index: Int): Component = {
-          new Label {
-            text = diff.getChangeType match {
-              case DiffEntry.ChangeType.ADD | DiffEntry.ChangeType.MODIFY => diff.getNewPath
-              case DiffEntry.ChangeType.DELETE => diff.getOldPath
-              case DiffEntry.ChangeType.COPY | DiffEntry.ChangeType.RENAME =>
-                diff.getOldPath + " -> " + diff.getNewPath
-            }
-          }
-        }
-      }
-    }
+    val changedFiles = new FileList(commitsTable.selectedCommit.convert({
+      case Some(commit) => repository.diff(commit)
+      case None => Nil
+    }))
     val comment = new CommentArea(commitsTable.selectedCommit)
     comment.editFSM.onChange({
       case comment.Committing(commit, message) =>

@@ -59,7 +59,7 @@ class GitRepository(rootPath: File) {
       Right(result.getNewHead)
   }
 
-  def diff(commit: RevCommit): Seq[DiffEntry] = {
+  def diff(commit: RevCommit): List[DiffEntry] = {
     val oldParser = new CanonicalTreeParser()
     oldParser.reset(repository.newObjectReader(), commit.getParent(0).getTree)
     val newParser = new CanonicalTreeParser()
