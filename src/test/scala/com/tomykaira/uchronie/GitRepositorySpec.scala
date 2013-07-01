@@ -67,4 +67,14 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
       id should equal (None)
     }
   }
+
+  describe("diff") {
+    it("should list changed files") {
+      createCommit("test", "first", "First commit")
+      val commit = createCommit("test", "second", "second commit")
+      val diff = repository.diff(commit)
+      diff should have length 1
+      diff(0).getNewPath should equal ("test")
+    }
+  }
 }

@@ -4,10 +4,11 @@ import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import java.io.File
 import org.eclipse.jgit.revwalk.{RevCommit, RevWalk}
 import org.eclipse.jgit.lib.{Constants, AbbreviatedObjectId, AnyObjectId, ObjectId}
-import scala.collection.JavaConverters.asScalaIteratorConverter
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+import scala.collection.JavaConverters.{asScalaIteratorConverter,collectionAsScalaIterableConverter}
 import org.eclipse.jgit.api._
 import scala.Some
+import org.eclipse.jgit.treewalk.CanonicalTreeParser
+import org.eclipse.jgit.diff.DiffEntry
 
 class GitRepository(rootPath: File) {
   val repository = new FileRepositoryBuilder().
@@ -57,4 +58,13 @@ class GitRepository(rootPath: File) {
     else
       Right(result.getNewHead)
   }
+
+  def diff(commit: RevCommit): Seq[DiffEntry] = {
+    val oldParser = new CanonicalTreeParser()
+    oldParser.reset(repository.newObjectReader(), commit.getParent(0).getTree)
+    val newParser = new CanonicalTreeParser()
+    newParser.reset(repository.newObjectReader(), commit.getTree)
+    git.diff().setOldTree(oldParser).setNewTree(newParser).call().asScala.toList
+  }
+
 }
