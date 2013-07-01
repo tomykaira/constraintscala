@@ -1,14 +1,14 @@
 package com.tomykaira.uchronie
 
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
-import java.io.File
+import java.io.{ByteArrayOutputStream, File}
 import org.eclipse.jgit.revwalk.{RevCommit, RevWalk}
-import org.eclipse.jgit.lib.{Constants, AbbreviatedObjectId, AnyObjectId, ObjectId}
+import org.eclipse.jgit.lib.{AbbreviatedObjectId, AnyObjectId, ObjectId}
 import scala.collection.JavaConverters.{asScalaIteratorConverter,collectionAsScalaIterableConverter}
 import org.eclipse.jgit.api._
 import scala.Some
 import org.eclipse.jgit.treewalk.CanonicalTreeParser
-import org.eclipse.jgit.diff.DiffEntry
+import org.eclipse.jgit.diff.{DiffFormatter, DiffEntry}
 
 class GitRepository(rootPath: File) {
   val repository = new FileRepositoryBuilder().
@@ -16,6 +16,10 @@ class GitRepository(rootPath: File) {
     readEnvironment().
     findGitDir().
     build()
+
+  lazy val diffStream = new ByteArrayOutputStream
+  lazy val diffFormatter = new DiffFormatter(diffStream)
+  diffFormatter.setRepository(repository)
 
   def listCommits(start: ObjectId, end: ObjectId): ArrangingGraph = {
     val walk = new RevWalk(repository)
@@ -65,6 +69,13 @@ class GitRepository(rootPath: File) {
     val newParser = new CanonicalTreeParser()
     newParser.reset(repository.newObjectReader(), commit.getTree)
     git.diff().setOldTree(oldParser).setNewTree(newParser).call().asScala.toList
+  }
+
+  def formatDiff(entry: DiffEntry): String = {
+    diffFormatter.format(entry)
+    val result = diffStream.toString("UTF-8")
+    diffStream.reset()
+    result
   }
 
 }

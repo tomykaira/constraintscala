@@ -3,7 +3,6 @@ package com.tomykaira.uchronie
 import scala.swing.Table
 import scala.swing.event.TableRowsSelected
 import javax.swing.table.DefaultTableModel
-import org.eclipse.jgit.lib.ObjectId
 import com.tomykaira.constraintscala.{StaticConstraint, Constraint}
 import org.eclipse.jgit.revwalk.RevCommit
 

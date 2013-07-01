@@ -1,14 +1,8 @@
 package com.tomykaira.uchronie
 
 import scala.swing._
-import javax.swing.table.DefaultTableModel
-import java.io.File
-import org.eclipse.jgit.lib.{Constants, ObjectId}
-import scala.swing.event.{TableRowsSelected, SelectionChanged}
-import com.tomykaira.constraintscala.{StaticConstraint, Constraint}
-import org.eclipse.jgit.diff.DiffEntry
-import scala.swing.ListView.Renderer
-import javax.swing.border.{LineBorder, EmptyBorder}
+import org.eclipse.jgit.lib.ObjectId
+import com.tomykaira.constraintscala.StaticConstraint
 
 object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
@@ -36,7 +30,10 @@ object Main extends SimpleSwingApplication {
     })
     val changes = new TextArea() {
       editable = false
-      text = "Changes"
+      changedFiles.selectedItem.onChange({
+        case Some(diff) => text = repository.formatDiff(diff)
+        case None =>
+      })
     }
 
     contents = new SplitPane(Orientation.Vertical,
