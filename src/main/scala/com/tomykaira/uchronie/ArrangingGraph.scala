@@ -27,10 +27,9 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
       orphans <- Right(commits.take(index)).right
       _ <- Right(repository.resetHard(target)).right
       newHead <- Right(repository.amendMessage(message)).right
-      newLast <- orphans.foldRight[Either[String, RevCommit]](Right(newHead))(
-        (c, prev) => prev.right.flatMap(_ => repository.cherryPick(c))).right
-    } yield repository.listCommits(start, newLast)
-    result.left.map({ err => repository.resetHard(last); err })
+      newLast <- applyCommits(newHead, orphans.reverse).right
+    } yield newLast
+    finishUpdate(result)
   }
 
   def selectRange(rows: Seq[Int]) = {
@@ -49,13 +48,22 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
 
     val (common, todo) = skipCommonRoot(newOrder.reverse, commits.reverse, startCommit)
     repository.resetHard(common)
-    todo.foldLeft[Either[String, RevCommit]](Right(common))(
-      (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c))) match {
+    finishUpdate(applyCommits(common, todo))
+  }
+
+  // commits should be ordered from old to new
+  private def applyCommits(first: RevCommit, commits: List[RevCommit]): Either[String, RevCommit] = {
+    commits.foldLeft[Either[String, RevCommit]](Right(first))(
+      (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c)))
+  }
+
+  private def finishUpdate(newLast: Either[String, RevCommit]): Either[String, ArrangingGraph] = {
+    newLast match {
       case Left(err) =>
         repository.resetHard(last)
         Left(err)
-      case Right(newLast) =>
-        Right(repository.listCommits(start, newLast))
+      case Right(c) =>
+        Right(repository.listCommits(start, c))
     }
   }
 
