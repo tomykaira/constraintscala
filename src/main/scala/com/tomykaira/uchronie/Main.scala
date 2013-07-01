@@ -3,6 +3,7 @@ package com.tomykaira.uchronie
 import scala.swing._
 import org.eclipse.jgit.lib.ObjectId
 import com.tomykaira.constraintscala.StaticConstraint
+import scala.swing.event.ButtonClicked
 
 object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
@@ -36,8 +37,20 @@ object Main extends SimpleSwingApplication {
       })
     }
 
+    val commitsController = new BoxPanel(Orientation.Vertical) {
+      contents += commitsTable
+      contents += new GridPanel(1, 2) {
+        contents += new Button("Update message (Ctrl+Enter)") {
+          reactions += {
+            case e: ButtonClicked => comment.editFSM.startCommit()
+          }
+        }
+        contents += new Button("Fixup")
+      }
+    }
+
     contents = new SplitPane(Orientation.Vertical,
-      new SplitPane(Orientation.Horizontal, commitsTable, comment),
+      new SplitPane(Orientation.Horizontal, commitsController, comment),
       new SplitPane(Orientation.Horizontal, changedFiles, changes))
   }
 

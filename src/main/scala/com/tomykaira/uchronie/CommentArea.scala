@@ -19,6 +19,10 @@ class CommentArea(constraint: Constraint[Option[RevCommit]]) extends TextArea {
   val editFSM = new FSM[EditState] {
     val transitions = List()
     state = NothingSelected()
+
+    def startCommit() {
+      changeState({ case Editing(commit) => Committing(commit, text) })
+    }
   }
 
   constraint.onChange({
@@ -46,6 +50,6 @@ class CommentArea(constraint: Constraint[Option[RevCommit]]) extends TextArea {
     case e: ValueChanged =>
       editFSM.changeState({ case Selected(commit) => Editing(commit) })
     case e: KeyReleased if (e.modifiers & InputEvent.CTRL_DOWN_MASK) == InputEvent.CTRL_DOWN_MASK && e.key == Key.Enter =>
-      editFSM.changeState({ case Editing(commit) => Committing(commit, text) })
+      editFSM.startCommit()
   }
 }
