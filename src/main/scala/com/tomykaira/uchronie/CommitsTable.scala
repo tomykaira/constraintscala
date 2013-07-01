@@ -1,10 +1,14 @@
 package com.tomykaira.uchronie
 
-import scala.swing.Table
-import scala.swing.event.TableRowsSelected
+import scala.swing.{Dialog, Table}
 import javax.swing.table.DefaultTableModel
 import com.tomykaira.constraintscala.{StaticConstraint, Constraint}
 import org.eclipse.jgit.revwalk.RevCommit
+import javax.swing._
+import java.awt.datatransfer.{Transferable, DataFlavor}
+import javax.activation.{DataHandler, ActivationDataFlavor}
+import scala.Some
+import scala.swing.event.TableRowsSelected
 
 class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Table {
   override lazy val model = super.model.asInstanceOf[DefaultTableModel]
@@ -16,6 +20,10 @@ class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Ta
   model addColumn "Comment"
 
   peer.getColumnModel.getColumn(0).setMaxWidth(100)
+  peer.getSelectionModel.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
+  peer.setTransferHandler(new CommitTransferHandler)
+  peer.setDropMode(DropMode.INSERT_ROWS)
+  peer.setDragEnabled(true)
 
   def selectedRow: Option[Int] = {
     val row = peer.getSelectedRow
@@ -39,4 +47,38 @@ class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Ta
       model addRow new CommitDecorator(commit).tableRow(graph.repository))
     oldSelected.foreach(row => peer.setRowSelectionInterval(row, row))
   })
+
+  class CommitTransferHandler extends TransferHandler {
+    private val flavor = new ActivationDataFlavor(classOf[GraphRange], DataFlavor.javaJVMLocalObjectMimeType, "Part of ArrangingGraph object")
+
+    override def createTransferable(c: JComponent): Transferable = {
+      val table = c.asInstanceOf[JTable]
+      val transferable = graphConstraint.get.selectRange(table.getSelectedRows)
+      new DataHandler(transferable, flavor.getMimeType)
+    }
+
+    override def canImport(support: TransferHandler.TransferSupport): Boolean = {
+      support.isDrop &&
+        support.isDataFlavorSupported(flavor) &&
+        graphConstraint.get.contains(graphRange(support))
+    }
+
+    override def getSourceActions(c: JComponent): Int = TransferHandler.MOVE
+
+    override def importData(support: TransferHandler.TransferSupport): Boolean = {
+      if (!canImport(support)) return false
+      val dl = support.getDropLocation.asInstanceOf[JTable.DropLocation]
+      graphConstraint.get.reorder(graphRange(support), dl.getRow) match {
+        case Left(err) =>
+          Dialog.showMessage(title = "Error", message = err)
+          false
+        case Right(next) =>
+          graphConstraint.update(next)
+          true
+      }
+    }
+
+    private def graphRange(support: TransferHandler.TransferSupport): GraphRange =
+      support.getTransferable.getTransferData(flavor).asInstanceOf[GraphRange]
+  }
 }
