@@ -54,6 +54,8 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
 
   def squash(range: GraphRange): Either[String, ArrangingGraph] = {
     if(range.commits.size <= 1) return Right(this)
+    if(!isSequentialSlice(range.commits))
+      return Left("Only sequential commits can be squashed.\nReorder commits before squashing")
 
     val squashLast: RevCommit = range.commits.head
     val orphans = commits.takeWhile(_ != squashLast)
@@ -64,6 +66,8 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     val newHead = repository.commit(messageBuilder.mkString)
     finishUpdate(applyCommits(newHead, orphans.reverse))
   }
+
+  private def isSequentialSlice(part: List[RevCommit]): Boolean = commits.containsSlice(part)
 
   // parent in the target graph
   private def parent(commit: RevCommit): RevCommit = {

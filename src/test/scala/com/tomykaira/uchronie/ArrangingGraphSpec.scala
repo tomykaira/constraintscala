@@ -157,5 +157,11 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
         result.right.value.commits.map(_.getFullMessage) should equal (List("2nd\n\n3rd\n\n4th"))
       }
     }
+    it("should fail without operation if range is not sequential") {
+      new RangeFixture {
+        val result = graph.selectRange(Seq(0,2)).squash()
+        result should be ('left)
+      }
+    }
   }
 }
