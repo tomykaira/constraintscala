@@ -4,10 +4,10 @@ import scala.swing.Table
 import scala.swing.event.TableRowsSelected
 import javax.swing.table.DefaultTableModel
 import org.eclipse.jgit.lib.ObjectId
-import com.tomykaira.constraintscala.Constraint
+import com.tomykaira.constraintscala.{StaticConstraint, Constraint}
 import org.eclipse.jgit.revwalk.RevCommit
 
-class CommitsTable(repository: GitRepository, start: ObjectId, end: ObjectId) extends Table {
+class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Table {
   override lazy val model = super.model.asInstanceOf[DefaultTableModel]
   autoResizeMode = Table.AutoResizeMode.LastColumn
 
@@ -18,16 +18,26 @@ class CommitsTable(repository: GitRepository, start: ObjectId, end: ObjectId) ex
 
   peer.getColumnModel.getColumn(0).setMaxWidth(100)
 
-  val graph = repository.listCommits(start, end)
+  def selectedRow: Option[Int] = {
+    val row = peer.getSelectedRow
+    if (row == -1) None else Some(row)
+  }
+
   val selectedCommit = new Constraint[Option[RevCommit]]({
-    graph(peer.getSelectedRow)
+    selectedRow.flatMap(row => graphConstraint.get(row))
   })
 
   reactions += {
-    case e: TableRowsSelected if !e.adjusting => selectedCommit.invalidate()
+    case e: TableRowsSelected if !e.adjusting => { selectedCommit.invalidate() }
   }
 
-  graph.commits.foreach(commit =>
-    model addRow new CommitDecorator(commit).tableRow(repository)
-  )
+  graphConstraint.onChange({ graph =>
+    val oldSelected = selectedRow
+    for (i <- 0 to model.getRowCount - 1) {
+      model.removeRow(0)
+    }
+    graph.commits.foreach(commit =>
+      model addRow new CommitDecorator(commit).tableRow(graph.repository))
+    oldSelected.foreach(row => peer.setRowSelectionInterval(row, row))
+  })
 }

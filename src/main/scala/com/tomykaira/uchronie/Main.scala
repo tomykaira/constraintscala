@@ -5,12 +5,15 @@ import javax.swing.table.DefaultTableModel
 import java.io.File
 import org.eclipse.jgit.lib.ObjectId
 import scala.swing.event.{TableRowsSelected, SelectionChanged}
+import com.tomykaira.constraintscala.{StaticConstraint, Constraint}
 
 object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
     title = "Uchronie"
 
-    val commitsTable = new CommitsTable(repository, start, end)
+    val graph = repository.listCommits(start, end)
+    val graphConstraint = new StaticConstraint[ArrangingGraph](graph)
+    val commitsTable = new CommitsTable(graphConstraint)
 
     val changedFiles = new ListView[String](List("Foo.scala", "Bar.scala", "build.sbt")) {
 
@@ -18,7 +21,12 @@ object Main extends SimpleSwingApplication {
     val comment = new CommentArea(commitsTable.selectedCommit)
     comment.editFSM.onChange({
       case comment.Committing(commit, message) =>
-        repository.updateComment(commit, message)
+        graphConstraint.get.updateComment(commit, message) match {
+          case Left(error) => Dialog.showMessage(title = "Error", message = error)
+          case Right(newGraph) => {
+            graphConstraint.update(newGraph)
+          }
+        }
         comment.editFSM.changeStateTo(comment.Committed())
       case _ =>
     })
