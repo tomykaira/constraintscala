@@ -106,6 +106,20 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
         newCommits(0).getParent(0) should equal (newCommits(1))
       }
     }
+    it("should reorder two commits") {
+      new RangeFixture {
+        val range = graph.selectRange(Seq(1,2))
+        val newGraph = graph.reorder(range, 0)
+        newGraph.right.value.commits.map(_.getFullMessage) should equal (List("3rd", "2nd", "4th"))
+      }
+    }
+    it("should reorder new to old") {
+      new RangeFixture {
+        val range = graph.selectRange(Seq(0))
+        val newGraph = graph.reorder(range, 3)
+        newGraph.right.value.commits.map(_.getFullMessage) should equal (List("3rd", "2nd", "4th"))
+      }
+    }
     it("should reset to the original branch if failed") {
       val commits = List(
         createCommit("A", "1st", "1st"),
