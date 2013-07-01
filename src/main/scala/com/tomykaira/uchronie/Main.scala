@@ -45,7 +45,17 @@ object Main extends SimpleSwingApplication {
             case e: ButtonClicked => comment.editFSM.startCommit()
           }
         }
-        contents += new Button("Fixup")
+        contents += new Button("Fixup") {
+          reactions += {
+            case e: ButtonClicked =>
+              commitsTable.selectedRange.get.fixup() match {
+                case Left(err) =>
+                  Dialog.showMessage(title = "Error", message = err)
+                case Right(next) =>
+                  graphConstraint.update(next)
+              }
+          }
+        }
       }
     }
 

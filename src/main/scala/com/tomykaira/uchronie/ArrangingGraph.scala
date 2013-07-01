@@ -76,5 +76,9 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
 }
 
 class GraphRange(val graph: ArrangingGraph, val commits: List[RevCommit]) {
+  def fixup(): Either[String, ArrangingGraph] = {
+    Left("Not Implemented")
+  }
+
   def isEmpty: Boolean = commits.isEmpty
 }

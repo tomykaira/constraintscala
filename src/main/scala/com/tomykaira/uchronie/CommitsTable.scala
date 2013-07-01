@@ -33,9 +33,15 @@ class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Ta
   val selectedCommit = new Constraint[Option[RevCommit]]({
     selectedRow.flatMap(row => graphConstraint.get(row))
   })
+  val selectedRange = new Constraint[GraphRange]({
+    graphConstraint.get.selectRange(peer.getSelectedRows)
+  })
 
   reactions += {
-    case e: TableRowsSelected if !e.adjusting => { selectedCommit.invalidate() }
+    case e: TableRowsSelected if !e.adjusting => {
+      selectedCommit.invalidate()
+      selectedRange.invalidate()
+    }
   }
 
   graphConstraint.onChange({ graph =>
@@ -53,8 +59,7 @@ class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Ta
 
     override def createTransferable(c: JComponent): Transferable = {
       val table = c.asInstanceOf[JTable]
-      val transferable = graphConstraint.get.selectRange(table.getSelectedRows)
-      new DataHandler(transferable, flavor.getMimeType)
+      new DataHandler(selectedRange.get, flavor.getMimeType)
     }
 
     override def canImport(support: TransferHandler.TransferSupport): Boolean = {
