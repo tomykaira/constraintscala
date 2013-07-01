@@ -2,7 +2,6 @@ package com.tomykaira.uchronie
 
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.lib.ObjectId
-import org.eclipse.jgit.api.CheckoutResult
 
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val commits: List[RevCommit]) {
   val last = commits.lastOption
@@ -16,16 +15,16 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
 
   def updateComment(target: RevCommit, message: String): Either[String, ArrangingGraph] = {
     val temporaryBranchName = "temp" + hashCode()
-    commits.indexOf(target) match {
-      case -1 => Left("Target " + target.getName + " not included in current list")
-      case index => {
-        val orphans = commits.take(index)
-        repository.checkoutAs(target, temporaryBranchName).right.map { _ =>
-          val newHead = repository.amendMessage(message)
-          orphans.foldRight[Either[String, RevCommit]](Right(newHead))(
-            (c, prev) => prev.right.map(_ => repository.cherryPick(c)).joinRight)
-        }.joinRight.right.map(newCommit => repository.listCommits(start, newCommit))
-      }
-    }
+    for { // FIXME
+      index <- (commits.indexOf(target) match {
+        case -1 => Left("Target " + target.getName + " not included in current list")
+        case i => Right(i)
+      }).right
+      orphans <- Right(commits.take(index)).right
+      _ <- repository.checkoutAs(target, temporaryBranchName).right
+      newHead <- Right(repository.amendMessage(message)).right
+      last <- orphans.foldRight[Either[String, RevCommit]](Right(newHead))(
+        (c, prev) => prev.right.flatMap(_ => repository.cherryPick(c))).right
+    } yield repository.listCommits(start, last)
   }
 }
