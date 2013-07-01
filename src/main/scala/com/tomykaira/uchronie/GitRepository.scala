@@ -75,11 +75,14 @@ class GitRepository(rootPath: File) {
     git.diff().setOldTree(oldParser).setNewTree(newParser).call().asScala.toList
   }
 
+  def resetHard(commit: ObjectId) {
+    git.reset().setRef(commit.getName).setMode(ResetCommand.ResetType.HARD).call()
+  }
+
   def formatDiff(entry: DiffEntry): String = {
     diffFormatter.format(entry)
     val result = diffStream.toString("UTF-8")
     diffStream.reset()
     result
   }
-
 }

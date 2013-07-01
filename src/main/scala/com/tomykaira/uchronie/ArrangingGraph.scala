@@ -5,7 +5,11 @@ import org.eclipse.jgit.lib.ObjectId
 import scala.annotation.tailrec
 
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val commits: List[RevCommit]) {
-  val last = commits.lastOption
+  private lazy val startCommit: RevCommit = repository.toCommit(start)
+  private lazy val last = commits.headOption.getOrElse(startCommit)
+  private lazy val myBranchName = "temp" + hashCode
+
+  repository.checkoutAs(last, myBranchName)
 
   def apply(nth: Int): Option[RevCommit] = {
     if (commits.indices.contains(nth))
@@ -21,7 +25,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
         case i => Right(i)
       }).right
       orphans <- Right(commits.take(index)).right
-      _ <- repository.checkoutAs(target, temporaryBranchName).right
+      _ <- Right(repository.resetHard(target)).right
       newHead <- Right(repository.amendMessage(message)).right
       last <- orphans.foldRight[Either[String, RevCommit]](Right(newHead))(
         (c, prev) => prev.right.flatMap(_ => repository.cherryPick(c))).right
@@ -42,15 +46,17 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
       range.commits ++
       commits.drop(insertTo).filterNot(range.commits contains _)
 
-    val (common, todo) = skipCommonRoot(newOrder.reverse, commits.reverse, repository.toCommit(start))
-    repository.checkoutAs(common, temporaryBranchName)
-    val result = todo.foldLeft[Either[String, RevCommit]](Right(common))(
-      (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c)))
-    result.right.map(newLast => repository.listCommits(start, newLast))
+    val (common, todo) = skipCommonRoot(newOrder.reverse, commits.reverse, startCommit)
+    repository.resetHard(common)
+    todo.foldLeft[Either[String, RevCommit]](Right(common))(
+      (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c))) match {
+      case Left(err) =>
+        repository.resetHard(commits.headOption.getOrElse(startCommit))
+        Left(err)
+      case Right(newLast) =>
+        Right(repository.listCommits(start, newLast))
+    }
   }
-
-  private[this] def temporaryBranchName: String =
-    "temp" + hashCode()
 
   @tailrec
   private[this] def skipCommonRoot[A](xs: List[A], ys: List[A], common: A): (A, List[A]) = (xs, ys) match {

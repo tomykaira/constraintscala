@@ -3,6 +3,7 @@ package com.tomykaira.uchronie
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
 import org.scalatest.EitherValues._
+import org.eclipse.jgit.lib.Constants
 
 class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -104,6 +105,18 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
         val newCommits = graph.reorder(range, 0).right.value.commits
         newCommits(0).getParent(0) should equal (newCommits(1))
       }
+    }
+    it("should reset to the original branch if failed") {
+      val commits = List(
+        createCommit("A", "1st", "1st"),
+        createCommit("A", "2st", "2st"),
+        createCommit("A", "3st", "3st")
+      )
+      val graph = repository.listCommits(commits.head, commits.last)
+      val range = graph.selectRange(Seq(0))
+      val result = graph.reorder(range, 2)
+      result should be ('left)
+      repository.repository.resolve(Constants.HEAD) should equal (commits.last.getId)
     }
   }
 }
