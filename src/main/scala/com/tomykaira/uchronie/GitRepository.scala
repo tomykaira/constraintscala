@@ -38,19 +38,6 @@ class GitRepository(rootPath: File) {
 
   def git: Git = new Git(repository)
 
-  def last: ObjectId =
-    repository.resolve(Constants.HEAD)
-
-  def updateComment(commit: RevCommit, message: String): Either[String, RevCommit] = {
-    val temporaryBranchName = "temp" + System.nanoTime()
-    val orphans = listCommits(commit, last) // TODO: use range last
-    checkoutAs(commit, temporaryBranchName).right.map { _ =>
-      val newHead = amendMessage(message)
-      orphans.commits.foldRight[Either[String, RevCommit]](Right(newHead))(
-        (c, prev) => prev.right.map(_ => cherryPick(c)).joinRight)
-    }.joinRight
-  }
-
   def checkoutAs(commit: RevCommit, newBranchName: String): Either[String, RevCommit] = {
     val command = git.checkout.setStartPoint(commit).setName(newBranchName).setCreateBranch(true)
     command.call()

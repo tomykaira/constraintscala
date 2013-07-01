@@ -67,29 +67,4 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
       id should equal (None)
     }
   }
-
-  describe("update commit comment") {
-    val comment = "Hello New World"
-
-    it("should change comment of existing commit") {
-      val commit = firstCommit
-      val newCommit = repository.updateComment(commit, comment)
-      newCommit.right.value.getFullMessage should equal (comment)
-    }
-
-    it("should return the rebased last commit") {
-      val secondComment = "second"
-      val first  = firstCommit
-      createCommit("file", "content", secondComment)
-      val newCommit = repository.updateComment(first, comment)
-      newCommit.right.value.getFullMessage should equal (secondComment)
-    }
-
-    it("should succeed to cherry-pick with 3 commits") {
-      val first = firstCommit
-      createCommit("2nd")
-      createCommit("3rd")
-      repository.updateComment(first, comment) should be ('right)
-    }
-  }
 }
