@@ -24,10 +24,10 @@ object Main extends SimpleSwingApplication {
         graphConstraint.get.updateComment(commit, message) match {
           case Left(error) => Dialog.showMessage(title = "Error", message = error)
           case Right(newGraph) => {
+            comment.editFSM.changeStateTo(comment.Committed())
             graphConstraint.update(newGraph)
           }
         }
-        comment.editFSM.changeStateTo(comment.Committed())
       case _ =>
     })
     val changes = new TextArea() {
