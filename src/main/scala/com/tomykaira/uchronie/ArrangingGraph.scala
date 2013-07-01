@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val commits: List[RevCommit]) {
   private lazy val startCommit: RevCommit = repository.toCommit(start)
   private lazy val last = commits.headOption.getOrElse(startCommit)
-  private lazy val myBranchName = "temp" + hashCode
+  private lazy val myBranchName = "temp" + hashCode + System.currentTimeMillis()
 
   repository.checkoutAs(last, myBranchName)
 
