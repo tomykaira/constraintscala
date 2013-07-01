@@ -41,6 +41,10 @@ class GitRepository(rootPath: File) {
       None
   }
 
+  def toCommit(id: ObjectId): RevCommit = {
+    new RevWalk(repository).parseCommit(id)
+  }
+
   def git: Git = new Git(repository)
 
   def checkoutAs(commit: RevCommit, newBranchName: String): Either[String, RevCommit] = {
