@@ -145,5 +145,17 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
         graph.selectRange(Seq(2)).squash().right.value should equal (graph)
       }
     }
+    it("should squash 2 commits into one") {
+      new RangeFixture {
+        val result = graph.selectRange(Seq(1,2)).squash()
+        result.right.value.commits.map(_.getFullMessage) should equal (List("4th", "2nd\n\n3rd"))
+      }
+    }
+    it("should squash 3 commits into one") {
+      new RangeFixture {
+        val result = graph.selectRange(Seq(0,1,2)).squash()
+        result.right.value.commits.map(_.getFullMessage) should equal (List("2nd\n\n3rd\n\n4th"))
+      }
+    }
   }
 }

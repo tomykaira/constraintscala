@@ -76,7 +76,19 @@ class GitRepository(rootPath: File) {
   }
 
   def resetHard(commit: ObjectId) {
-    git.reset().setRef(commit.getName).setMode(ResetCommand.ResetType.HARD).call()
+    reset(commit, ResetCommand.ResetType.HARD)
+  }
+
+  def resetSoft(commit: ObjectId) {
+    reset(commit, ResetCommand.ResetType.SOFT)
+  }
+
+  private def reset(commit: ObjectId, resetType: ResetCommand.ResetType) {
+    git.reset().setRef(commit.getName).setMode(resetType).call()
+  }
+
+  def commit(message: String): RevCommit = {
+    git.commit().setMessage(message).call()
   }
 
   def formatDiff(entry: DiffEntry): String = {

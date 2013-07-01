@@ -3,6 +3,7 @@ package com.tomykaira.uchronie
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.lib.ObjectId
 import scala.annotation.tailrec
+import org.eclipse.jgit.api.ResetCommand
 
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val commits: List[RevCommit]) {
   private lazy val startCommit: RevCommit = repository.toCommit(start)
@@ -52,7 +53,25 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
   }
 
   def squash(range: GraphRange): Either[String, ArrangingGraph] = {
-    Right(this)
+    if(range.commits.size <= 1) return Right(this)
+
+    val squashLast: RevCommit = range.commits.head
+    val orphans = commits.takeWhile(_ != squashLast)
+    val messageBuilder = range.commits.reverse.map(_.getFullMessage.stripLineEnd).addString(new StringBuilder, "\n\n")
+
+    repository.resetHard(squashLast)
+    repository.resetSoft(parent(range.commits.last))
+    val newHead = repository.commit(messageBuilder.mkString)
+    finishUpdate(applyCommits(newHead, orphans.reverse))
+  }
+
+  // parent in the target graph
+  private def parent(commit: RevCommit): RevCommit = {
+    val index = commits.indexOf(commit)
+    if(index != -1 && commits.indices.contains(index + 1))
+      commits(index+1)
+    else
+      startCommit
   }
 
   // commits should be ordered from old to new
