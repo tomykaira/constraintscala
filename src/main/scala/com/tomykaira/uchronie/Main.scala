@@ -36,13 +36,18 @@ object Main extends SimpleSwingApplication {
         entries = Seq("Done", "Abort"),
         initial = 0
       )
+
+    def pickInteractively(graph: ArrangingGraph, orphans: GraphRange) {
+      editFSM.changeStateTo(Rebasing(orphans))
+    }
+
     editFSM.onChange({
       case EditCommit(commit) =>
         val currentGraph = graphConstraint.get
         val orphans = currentGraph.startEdit(commit)
         openEditWaitingDialog match {
           case Dialog.Result.Yes =>
-            editFSM.changeStateTo(Rebasing(orphans))
+            pickInteractively(currentGraph, orphans)
           case _ =>
             currentGraph.rollback()
             editFSM.changeStateTo(NotEditing())
