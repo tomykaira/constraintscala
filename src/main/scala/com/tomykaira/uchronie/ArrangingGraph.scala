@@ -19,6 +19,10 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
       None
   }
 
+  def rollback() {
+    repository.resetHard(last)
+  }
+
   def updateComment(target: RevCommit, message: String): Either[String, ArrangingGraph] = {
     val result = for { // FIXME
       index <- (commits.indexOf(target) match {
@@ -76,6 +80,10 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     finishUpdate(applyCommits(common, todo))
   }
 
+  def startEdit(commit: RevCommit): GraphRange = {
+    selectRange(Seq())
+  }
+
   private def isSequentialSlice(part: List[RevCommit]): Boolean = commits.containsSlice(part)
 
   // parent in the target graph
@@ -96,7 +104,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
   private def finishUpdate(newLast: Either[String, RevCommit]): Either[String, ArrangingGraph] = {
     newLast match {
       case Left(err) =>
-        repository.resetHard(last)
+        rollback()
         Left(err)
       case Right(c) =>
         Right(repository.listCommits(start, c))

@@ -4,6 +4,7 @@ import scala.swing._
 import org.eclipse.jgit.lib.ObjectId
 import com.tomykaira.constraintscala.{FSM, StaticConstraint}
 import scala.swing.event.ButtonClicked
+import org.eclipse.jgit.revwalk.RevCommit
 
 object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
@@ -18,6 +19,36 @@ object Main extends SimpleSwingApplication {
       }
     }
     val commitsTable = new CommitsTable(graphConstraint)
+
+    sealed trait EditState
+    case class NotEditing() extends EditState
+    case class EditCommit(commit: RevCommit) extends EditState
+    case class EditDone(commit: RevCommit) extends EditState
+    case class Rebasing(range: GraphRange) extends EditState
+    case class RebaseFailed(range: GraphRange) extends EditState
+    val editFSM = new FSM[EditState] {
+      state = NotEditing()
+    }
+    def openEditWaitingDialog: Dialog.Result.Value =
+      Dialog.showOptions(
+        title = "Edit commit",
+        message = "Edit files with editor and commit everything.\nThe working tree must be clean to proceed.",
+        entries = Seq("Done", "Abort"),
+        initial = 0
+      )
+    editFSM.onChange({
+      case EditCommit(commit) =>
+        val currentGraph = graphConstraint.get
+        val orphans = currentGraph.startEdit(commit)
+        openEditWaitingDialog match {
+          case Dialog.Result.Yes =>
+            editFSM.changeStateTo(Rebasing(orphans))
+          case _ =>
+            currentGraph.rollback()
+            editFSM.changeStateTo(NotEditing())
+        }
+      case _ =>
+    })
 
     commitsTable.state.onChange({
       case commitsTable.Dropped(range, at) =>
@@ -69,6 +100,16 @@ object Main extends SimpleSwingApplication {
               commitsTable.state.get match {
                 case commitsTable.RowsSelected(range) =>
                   updateGraphWithRearranged(range.delete())
+                case _ =>
+              }
+          }
+        }
+        contents += new Button("Edit") {
+          reactions += {
+            case e: ButtonClicked =>
+              commitsTable.state.get match {
+                case commitsTable.RowsSelected(range) =>
+                  range.first.foreach(commit => editFSM.changeState(NotEditing(), EditCommit(commit)))
                 case _ =>
               }
           }
