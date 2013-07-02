@@ -53,7 +53,9 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
     }
     arrangingGraph.commits.foreach(commit =>
       model addRow new CommitDecorator(commit).tableRow(arrangingGraph.repository))
-    oldSelected.foreach(row => peer.setRowSelectionInterval(row, row))
+    oldSelected.foreach(row =>
+      if (row < peer.getRowCount)
+        peer.setRowSelectionInterval(row, row))
   })
 
   // Drag & drop set of commits
