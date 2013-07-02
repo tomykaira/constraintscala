@@ -81,7 +81,10 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
   }
 
   def startEdit(commit: RevCommit): GraphRange = {
-    selectRange(Seq())
+    val orphans = commits.takeWhile(_ != commit)
+    repository.resetHard(commit)
+    repository.resetSoft(parent(commit))
+    new GraphRange(this, orphans)
   }
 
   private def isSequentialSlice(part: List[RevCommit]): Boolean = commits.containsSlice(part)

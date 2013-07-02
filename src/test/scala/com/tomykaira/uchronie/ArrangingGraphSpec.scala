@@ -3,7 +3,8 @@ package com.tomykaira.uchronie
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
 import org.scalatest.EitherValues._
-import org.eclipse.jgit.lib.Constants
+import org.eclipse.jgit.lib.{IndexDiff, Constants}
+import org.eclipse.jgit.treewalk.FileTreeIterator
 
 class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -177,6 +178,37 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       new RangeFixture {
         val result = graph.selectRange(Seq(1)).delete()
         messages(result.right.value) should equal (List("4th", "2nd"))
+      }
+    }
+  }
+
+  trait EditFixture {
+    val commits = List(
+      createCommit("A", "1st", "1st"),
+      createCommit("B", "2nd", "2nd"),
+      createCommit("C", "3rd", "3rd"),
+      createCommit("D", "4th", "4th"))
+    val graph = repository.listCommits(commits.head, commits.last)
+  }
+
+  describe("startEdit") {
+    it("should checkout the parent of specified commit") {
+      new EditFixture {
+        graph.startEdit(commits(2))
+        repository.resolve(Constants.HEAD).get should equal (commits(1))
+      }
+    }
+    it("should have files indexed") {
+      new EditFixture {
+        graph.startEdit(commits(2))
+        val diff = new IndexDiff(repository.repository, Constants.HEAD, new FileTreeIterator(repository.repository))
+        diff.diff() should be (true)
+      }
+    }
+    it("should return orphan commits") {
+      new EditFixture {
+        val orphans = graph.startEdit(commits(2))
+        orphans.commits should equal (List(commits(3)))
       }
     }
   }
