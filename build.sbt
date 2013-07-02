@@ -15,3 +15,5 @@ libraryDependencies += "org.scala-lang" % "scala-swing" % "2.10.2"
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "3.0.0.201306101825-r"
 
 initialCommands := "import com.tomykaira.constraintscala._"
+
+scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
