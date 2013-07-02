@@ -68,6 +68,16 @@ object Main extends SimpleSwingApplication {
               }
           }
         }
+        contents += new Button("Delete") {
+          reactions += {
+            case e: ButtonClicked =>
+              commitsTable.state.get match {
+                case commitsTable.RowsSelected(range) =>
+                  updateGraphWithRearranged(range.delete())
+                case _ =>
+              }
+          }
+        }
       }
       add(commitsTable, BorderPanel.Position.Center)
       add(buttons, BorderPanel.Position.South)

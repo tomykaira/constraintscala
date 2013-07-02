@@ -166,4 +166,18 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       }
     }
   }
+
+  describe("delete") {
+    it("should do nothing if no commit is selected") {
+      new RangeFixture {
+        emptyRange.delete().right.value should equal (graph)
+      }
+    }
+    it("should create new tree without a specified commit") {
+      new RangeFixture {
+        val result = graph.selectRange(Seq(1)).delete()
+        messages(result.right.value) should equal (List("4th", "2nd"))
+      }
+    }
+  }
 }

@@ -67,6 +67,15 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     finishUpdate(applyCommits(newHead, orphans.reverse))
   }
 
+  def delete(range: GraphRange): Either[String, ArrangingGraph] = {
+    if (range.isEmpty) return Right(this)
+
+    val newCommits = commits.filterNot(range.commits contains _)
+    val (common, todo) = skipCommonRoot(newCommits.reverse, commits.reverse, startCommit)
+    repository.resetHard(common)
+    finishUpdate(applyCommits(common, todo))
+  }
+
   private def isSequentialSlice(part: List[RevCommit]): Boolean = commits.containsSlice(part)
 
   // parent in the target graph
@@ -105,6 +114,10 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
 class GraphRange(val graph: ArrangingGraph, val commits: List[RevCommit]) {
   def squash(): Either[String, ArrangingGraph] = {
     graph.squash(this)
+  }
+
+  def delete(): Either[String, ArrangingGraph] = {
+    graph.delete(this)
   }
 
   def isEmpty: Boolean = commits.isEmpty
