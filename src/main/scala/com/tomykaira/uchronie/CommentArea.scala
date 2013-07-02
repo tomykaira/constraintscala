@@ -12,7 +12,6 @@ class CommentArea(constraint: Constraint[Option[RevCommit]]) extends TextArea {
   case class Selected(commit: RevCommit) extends EditState
   case class Editing(commit: RevCommit) extends EditState
   case class Committing(commit: RevCommit, newComment: String) extends EditState
-  case class Committed() extends EditState
 
   listenTo(keys)
 
@@ -41,9 +40,6 @@ class CommentArea(constraint: Constraint[Option[RevCommit]]) extends TextArea {
     case Editing(_)  =>
       editable = true
       background = java.awt.Color.white
-    case Committed() =>
-      editable = true
-      background = new java.awt.Color(200, 255, 200)
   })
 
   reactions += {

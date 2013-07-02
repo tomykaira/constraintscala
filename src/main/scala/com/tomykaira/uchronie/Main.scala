@@ -11,6 +11,12 @@ object Main extends SimpleSwingApplication {
 
     val graph = repository.listCommits(start, end)
     val graphConstraint = new StaticConstraint[ArrangingGraph](graph)
+    def updateGraphWithRearranged(result: Either[String, ArrangingGraph]) {
+      result match {
+        case Left(err) => Dialog.showMessage(title = "Error", message = err)
+        case Right(g)  => graphConstraint.update(g)
+      }
+    }
     val commitsTable = new CommitsTable(graphConstraint)
 
     val changedFiles = new FileList(commitsTable.selectedCommit.convert({
@@ -20,19 +26,14 @@ object Main extends SimpleSwingApplication {
     val comment = new CommentArea(commitsTable.selectedCommit)
     comment.editFSM.onChange({
       case comment.Committing(commit, message) =>
-        graphConstraint.get.updateComment(commit, message) match {
-          case Left(error) => Dialog.showMessage(title = "Error", message = error)
-          case Right(newGraph) => {
-            comment.editFSM.changeStateTo(comment.Committed())
-            graphConstraint.update(newGraph)
-          }
-        }
+        val result = graphConstraint.get.updateComment(commit, message)
+        updateGraphWithRearranged(result)
       case _ =>
     })
     val changes = new TextArea() {
       editable = false
       changedFiles.selectedItem.onChange({
-        case Some(diff) => text = repository.formatDiff(diff)
+        case Some(diff) => text = new DiffDecorator(diff).formatted(repository)
         case None =>
       })
     }
@@ -48,12 +49,7 @@ object Main extends SimpleSwingApplication {
         contents += new Button("Squash") {
           reactions += {
             case e: ButtonClicked =>
-              commitsTable.selectedRange.get.squash() match {
-                case Left(err) =>
-                  Dialog.showMessage(title = "Error", message = err)
-                case Right(next) =>
-                  graphConstraint.update(next)
-              }
+              updateGraphWithRearranged(commitsTable.selectedRange.get.squash())
           }
         }
       }

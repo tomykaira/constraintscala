@@ -10,7 +10,7 @@ import javax.activation.{DataHandler, ActivationDataFlavor}
 import scala.Some
 import scala.swing.event.TableRowsSelected
 
-class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Table {
+class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
   override lazy val model = super.model.asInstanceOf[DefaultTableModel]
   autoResizeMode = Table.AutoResizeMode.LastColumn
 
@@ -20,10 +20,6 @@ class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Ta
   model addColumn "Comment"
 
   peer.getColumnModel.getColumn(0).setMaxWidth(100)
-  peer.getSelectionModel.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-  peer.setTransferHandler(new CommitTransferHandler)
-  peer.setDropMode(DropMode.INSERT_ROWS)
-  peer.setDragEnabled(true)
 
   def selectedRow: Option[Int] = {
     val row = peer.getSelectedRow
@@ -31,10 +27,10 @@ class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Ta
   }
 
   val selectedCommit = new Constraint[Option[RevCommit]]({
-    selectedRow.flatMap(row => graphConstraint.get(row))
+    selectedRow.flatMap(row => graph.get(row))
   })
   val selectedRange = new Constraint[GraphRange]({
-    graphConstraint.get.selectRange(peer.getSelectedRows)
+    graph.get.selectRange(peer.getSelectedRows)
   })
 
   reactions += {
@@ -44,15 +40,21 @@ class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Ta
     }
   }
 
-  graphConstraint.onChange({ graph =>
+  graph.onChange({ arrangingGraph =>
     val oldSelected = selectedRow
     for (i <- 0 to model.getRowCount - 1) {
       model.removeRow(0)
     }
-    graph.commits.foreach(commit =>
-      model addRow new CommitDecorator(commit).tableRow(graph.repository))
+    arrangingGraph.commits.foreach(commit =>
+      model addRow new CommitDecorator(commit).tableRow(arrangingGraph.repository))
     oldSelected.foreach(row => peer.setRowSelectionInterval(row, row))
   })
+
+  // Drag & drop set of commits
+  peer.getSelectionModel.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
+  peer.setTransferHandler(new CommitTransferHandler)
+  peer.setDropMode(DropMode.INSERT_ROWS)
+  peer.setDragEnabled(true)
 
   class CommitTransferHandler extends TransferHandler {
     private val flavor = new ActivationDataFlavor(classOf[GraphRange], DataFlavor.javaJVMLocalObjectMimeType, "Part of ArrangingGraph object")
@@ -65,7 +67,7 @@ class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Ta
     override def canImport(support: TransferHandler.TransferSupport): Boolean = {
       support.isDrop &&
         support.isDataFlavorSupported(flavor) &&
-        graphConstraint.get.contains(graphRange(support))
+        graph.get.contains(graphRange(support))
     }
 
     override def getSourceActions(c: JComponent): Int = TransferHandler.MOVE
@@ -73,12 +75,12 @@ class CommitsTable(graphConstraint: StaticConstraint[ArrangingGraph]) extends Ta
     override def importData(support: TransferHandler.TransferSupport): Boolean = {
       if (!canImport(support)) return false
       val dl = support.getDropLocation.asInstanceOf[JTable.DropLocation]
-      graphConstraint.get.reorder(graphRange(support), dl.getRow) match {
+      graph.get.reorder(graphRange(support), dl.getRow) match {
         case Left(err) =>
           Dialog.showMessage(title = "Error", message = err)
           false
         case Right(next) =>
-          graphConstraint.update(next)
+          graph.update(next)
           true
       }
     }

@@ -33,13 +33,7 @@ class FileList(changesConstraint: Constraint[List[DiffEntry]]) extends ListView[
     def componentFor(list: ListView[_], isSelected: Boolean, focused: Boolean, diff: DiffEntry, index: Int): Component = {
       val highlight = isSelected || focused
       new Label {
-        val diffEntry = diff
-        text = diff.getChangeType match {
-          case DiffEntry.ChangeType.ADD | DiffEntry.ChangeType.MODIFY => diff.getNewPath
-          case DiffEntry.ChangeType.DELETE => diff.getOldPath
-          case DiffEntry.ChangeType.COPY | DiffEntry.ChangeType.RENAME =>
-            diff.getOldPath + " -> " + diff.getNewPath
-        }
+        text = new DiffDecorator(diff).path
         horizontalAlignment = Alignment.Left
         opaque = true
         background = if(highlight) highlightBackground else java.awt.Color.white
