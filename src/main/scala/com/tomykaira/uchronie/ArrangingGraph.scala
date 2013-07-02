@@ -146,6 +146,9 @@ class GraphRange(val graph: ArrangingGraph, val commits: List[RevCommit]) {
     graph.delete(this)
   }
 
+  def applyInteractively: Either[GraphRange, ArrangingGraph] =
+    graph.applyInteractively(this)
+
   def isEmpty: Boolean = commits.isEmpty
 
   def first: Option[RevCommit] = {

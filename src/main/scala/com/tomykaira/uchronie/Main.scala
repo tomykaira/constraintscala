@@ -5,6 +5,7 @@ import org.eclipse.jgit.lib.ObjectId
 import com.tomykaira.constraintscala.{FSM, StaticConstraint}
 import scala.swing.event.ButtonClicked
 import org.eclipse.jgit.revwalk.RevCommit
+import scala.annotation.tailrec
 
 object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
@@ -36,9 +37,30 @@ object Main extends SimpleSwingApplication {
         entries = Seq("Done", "Abort"),
         initial = 0
       )
+    def openConflictFixWaitingDialog: Dialog.Result.Value =
+      Dialog.showOptions(
+        title = "Edit commit",
+        message = "Files are conflicted while rebasing.  Fix conflicts and commit all.",
+        entries = Seq("Done", "Abort"),
+        initial = 0
+      )
 
-    def pickInteractively(graph: ArrangingGraph, orphans: GraphRange) {
+    @tailrec
+    def pickInteractively(orphans: GraphRange) {
       editFSM.changeStateTo(Rebasing(orphans))
+      orphans.applyInteractively match {
+        case Left(rest) =>
+          editFSM.changeState({ case _: Rebasing => RebaseFailed(rest) })
+          openConflictFixWaitingDialog match {
+            case Dialog.Result.Yes =>
+              pickInteractively(rest)
+            case _ =>
+              orphans.graph.rollback()
+              editFSM.changeStateTo(NotEditing())
+          }
+        case Right(newGraph) =>
+          graphConstraint.update(newGraph)
+      }
     }
 
     editFSM.onChange({
@@ -47,7 +69,7 @@ object Main extends SimpleSwingApplication {
         val orphans = currentGraph.startEdit(commit)
         openEditWaitingDialog match {
           case Dialog.Result.Yes =>
-            pickInteractively(currentGraph, orphans)
+            pickInteractively(orphans)
           case _ =>
             currentGraph.rollback()
             editFSM.changeStateTo(NotEditing())
