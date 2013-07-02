@@ -7,26 +7,26 @@ import scala.swing.event.{ValueChanged, Key, KeyReleased}
 import java.awt.event.InputEvent
 
 class CommentArea(constraint: Constraint[Option[RevCommit]]) extends TextArea {
-  sealed trait EditState
-  case class NothingSelected() extends EditState
-  case class Selected(commit: RevCommit) extends EditState
-  case class Editing(commit: RevCommit) extends EditState
-  case class Committing(commit: RevCommit, newComment: String) extends EditState
+  sealed trait MessageState
+  case class NothingSelected() extends MessageState
+  case class Selected(commit: RevCommit) extends MessageState
+  case class Editing(commit: RevCommit) extends MessageState
+  case class Committing(commit: RevCommit, newComment: String) extends MessageState
 
   listenTo(keys)
 
   tooltip = "Edit and Ctrl+Enter to update the commit message"
 
-  val editFSM = new FSM[EditState] {
+  val messageFSM = new FSM[MessageState] {
     state = NothingSelected()
   }
 
   constraint.onChange({
-    case Some(commit) => editFSM.changeStateTo(Selected(commit))
-    case None => editFSM.changeStateTo(NothingSelected())
+    case Some(commit) => messageFSM.changeStateTo(Selected(commit))
+    case None => messageFSM.changeStateTo(NothingSelected())
   })
 
-  editFSM.onChange({
+  messageFSM.onChange({
     case NothingSelected() | Committing(_,_) =>
       editable = false
       background = java.awt.Color.gray
@@ -41,8 +41,8 @@ class CommentArea(constraint: Constraint[Option[RevCommit]]) extends TextArea {
 
   reactions += {
     case e: ValueChanged =>
-      editFSM.changeState({ case Selected(commit) => Editing(commit) })
+      messageFSM.changeState({ case Selected(commit) => Editing(commit) })
     case e: KeyReleased if (e.modifiers & InputEvent.CTRL_DOWN_MASK) == InputEvent.CTRL_DOWN_MASK && e.key == Key.Enter =>
-      editFSM.changeState({ case Editing(commit) => Committing(commit, text) })
+      messageFSM.changeState({ case Editing(commit) => Committing(commit, text) })
   }
 }

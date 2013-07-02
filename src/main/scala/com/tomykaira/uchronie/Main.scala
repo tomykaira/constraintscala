@@ -2,7 +2,7 @@ package com.tomykaira.uchronie
 
 import scala.swing._
 import org.eclipse.jgit.lib.ObjectId
-import com.tomykaira.constraintscala.StaticConstraint
+import com.tomykaira.constraintscala.{FSM, StaticConstraint}
 import scala.swing.event.ButtonClicked
 
 object Main extends SimpleSwingApplication {
@@ -36,7 +36,7 @@ object Main extends SimpleSwingApplication {
         range.first
       case _ => None
     }))
-    comment.editFSM.onChange({
+    comment.messageFSM.onChange({
       case comment.Committing(commit, message) =>
         val result = graphConstraint.get.updateComment(commit, message)
         updateGraphWithRearranged(result)
