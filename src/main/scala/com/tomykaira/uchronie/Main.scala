@@ -53,11 +53,6 @@ object Main extends SimpleSwingApplication {
     val commitsController = new BorderPanel() {
       val buttons = new GridPanel(1, 2) {
         maximumSize = new Dimension(Integer.MAX_VALUE, 50)
-        contents += new Button("Update message (Ctrl+Enter)") {
-          reactions += {
-            case e: ButtonClicked => comment.editFSM.startCommit()
-          }
-        }
         contents += new Button("Squash") {
           reactions += {
             case e: ButtonClicked =>
