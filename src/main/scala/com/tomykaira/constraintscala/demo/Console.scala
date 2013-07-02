@@ -24,7 +24,6 @@ object Console extends SimpleSwingApplication {
       }
       val execFSM = new FSM[ExecutionState] {
         state = Completed()
-        val transitions: List[Transition[ExecutionState]] = List()
       }
       val outputBuffer = new StringBuilder
       val outputConstraint = new Constraint[String]({ outputBuffer.toString() })

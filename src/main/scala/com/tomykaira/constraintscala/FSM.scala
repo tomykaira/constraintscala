@@ -2,7 +2,7 @@ package com.tomykaira.constraintscala
 
 trait FSM[S] extends Notifier[S] {
   var state: S = _
-  val transitions: List[Transition[S]]
+  val transitions: List[Transition[S]] = List()
   def get: S = state
 
   def changeState(from: S, to: S) {

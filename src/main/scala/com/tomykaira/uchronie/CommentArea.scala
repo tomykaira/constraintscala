@@ -16,7 +16,6 @@ class CommentArea(constraint: Constraint[Option[RevCommit]]) extends TextArea {
   listenTo(keys)
 
   val editFSM = new FSM[EditState] {
-    val transitions = List()
     state = NothingSelected()
 
     def startCommit() {

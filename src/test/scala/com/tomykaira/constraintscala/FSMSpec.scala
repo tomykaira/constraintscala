@@ -10,7 +10,6 @@ class FSMSpec extends FunSpec {
   describe("convert") {
     it("should invoke callbacks of constraint when FSM state changes") {
       val fsm = new FSM[State] {
-        val transitions = List()
         state = Init()
       }
       val constraint = fsm.convert[Boolean]({ s => s.isInstanceOf[Next] })

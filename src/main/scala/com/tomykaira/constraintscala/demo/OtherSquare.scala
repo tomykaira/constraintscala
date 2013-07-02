@@ -14,7 +14,7 @@ object OtherSquare extends SimpleSwingApplication {
       val createStateFor = (area: TextField) => {
         new FSM[AreaState] {
           state = Idle()
-          val transitions = List(
+          override val transitions = List(
             transition[MouseEntered](area, Idle(), Hover()),
             transition[MouseEntered](area, Idle(), Hover()),
             transition[MouseExited](area, Hover(), Idle()),
