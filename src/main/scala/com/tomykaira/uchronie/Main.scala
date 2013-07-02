@@ -21,6 +21,7 @@ object Main extends SimpleSwingApplication {
 
     commitsTable.state.onChange({
       case commitsTable.Dropped(range, at) =>
+        commitsTable.state.changeStateTo(commitsTable.RowsSelected(range))
         updateGraphWithRearranged(graphConstraint.get.reorder(range, at))
       case _ =>
     })
