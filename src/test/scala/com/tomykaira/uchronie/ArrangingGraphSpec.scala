@@ -50,6 +50,9 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       createCommit("C", "3rd", "3rd"),
       createCommit("D", "4th", "4th"))
     val graph = repository.listCommits(commits.head, commits.last)
+
+    def emptyRange: GraphRange = graph.selectRange(Seq())
+    def messages(graph: ArrangingGraph): List[String] = graph.commits.map(_.getFullMessage)
   }
 
   describe("selectRange") {
@@ -88,15 +91,14 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("reorder") {
     it("should return self if range is empty") {
       new RangeFixture {
-        val range = graph.selectRange(Seq())
-        graph.reorder(range, 0).right.value should equal (graph)
+        graph.reorder(emptyRange, 0).right.value should equal (graph)
       }
     }
     it("should reorder commits to move the last row to the top") {
       new RangeFixture {
         val range = graph.selectRange(Seq(2))
         val newGraph = graph.reorder(range, 0)
-        newGraph.right.value.commits.map(_.getFullMessage) should equal (List("2nd", "4th", "3rd"))
+        messages(newGraph.right.value) should equal (List("2nd", "4th", "3rd"))
       }
     }
     it("should actually modify git tree") {
@@ -110,14 +112,14 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       new RangeFixture {
         val range = graph.selectRange(Seq(1,2))
         val newGraph = graph.reorder(range, 0)
-        newGraph.right.value.commits.map(_.getFullMessage) should equal (List("3rd", "2nd", "4th"))
+        messages(newGraph.right.value) should equal (List("3rd", "2nd", "4th"))
       }
     }
     it("should reorder new to old") {
       new RangeFixture {
         val range = graph.selectRange(Seq(0))
         val newGraph = graph.reorder(range, 3)
-        newGraph.right.value.commits.map(_.getFullMessage) should equal (List("3rd", "2nd", "4th"))
+        messages(newGraph.right.value) should equal (List("3rd", "2nd", "4th"))
       }
     }
     it("should reset to the original branch if failed") {
@@ -137,7 +139,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("squash") {
     it("should do nothing if no commit is selected") {
       new RangeFixture {
-        graph.selectRange(Seq()).squash().right.value should equal (graph)
+        emptyRange.squash().right.value should equal (graph)
       }
     }
     it("should do nothing if 1 commit is selected") {
@@ -148,13 +150,13 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     it("should squash 2 commits into one") {
       new RangeFixture {
         val result = graph.selectRange(Seq(1,2)).squash()
-        result.right.value.commits.map(_.getFullMessage) should equal (List("4th", "2nd\n\n3rd"))
+        messages(result.right.value) should equal (List("4th", "2nd\n\n3rd"))
       }
     }
     it("should squash 3 commits into one") {
       new RangeFixture {
         val result = graph.selectRange(Seq(0,1,2)).squash()
-        result.right.value.commits.map(_.getFullMessage) should equal (List("2nd\n\n3rd\n\n4th"))
+        messages(result.right.value) should equal (List("2nd\n\n3rd\n\n4th"))
       }
     }
     it("should fail without operation if range is not sequential") {
