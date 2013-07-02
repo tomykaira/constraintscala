@@ -201,8 +201,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     it("should have files indexed") {
       new EditFixture {
         graph.startEdit(commits(2))
-        val diff = new IndexDiff(repository.repository, Constants.HEAD, new FileTreeIterator(repository.repository))
-        diff.diff() should be (true)
+        repository.git.status.call.isClean should be (false)
       }
     }
     it("should return orphan commits") {
@@ -210,6 +209,56 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
         val orphans = graph.startEdit(commits(2))
         orphans.commits should equal (List(commits(3)))
       }
+    }
+  }
+
+  describe("applyInteractively") {
+    it("should return new ArrangingGraph if success") {
+      def messages(graph: ArrangingGraph): List[String] = graph.commits.map(_.getFullMessage)
+      val commits = List(
+        createCommit("A", "1st", "1st"),
+        createCommit("B", "2nd", "2nd"),
+        createCommit("C", "3rd", "3rd"),
+        createCommit("D", "4th", "4th"))
+      val graph = repository.listCommits(commits.head, commits.last)
+      repository.resetHard(commits(1))
+      val result = graph.applyInteractively(graph.selectRange(Seq(0)))
+      messages(result.right.value) should equal (List("4th", "2nd"))
+    }
+    it("should return succeeding commits if failure") {
+      def messages(graph: ArrangingGraph): List[String] = graph.commits.map(_.getFullMessage)
+      val commits = List(
+        createCommit("A", "1st", "1st"),
+        createCommit("B", "2nd", "2nd"),
+        createCommit("B", "3rd", "3rd"),
+        createCommit("B", "4th", "4th"),
+        createCommit("B", "5th", "5th"))
+      val graph = repository.listCommits(commits.head, commits.last)
+      repository.resetHard(commits(1))
+      val result = graph.applyInteractively(graph.selectRange(Seq(0,1)))
+      result.left.value.commits should equal (List(commits(4)))
+    }
+    it("should keep repository dirty") {
+      val commits = List(
+        createCommit("A", "1st", "1st"),
+        createCommit("B", "2nd", "2nd"),
+        createCommit("B", "3rd", "3rd"),
+        createCommit("B", "4th", "4th"),
+        createCommit("B", "5th", "5th"))
+      val graph = repository.listCommits(commits.head, commits.last)
+      repository.resetHard(commits(1))
+      graph.applyInteractively(graph.selectRange(Seq(0,1)))
+      repository.git.status.call.isClean should be (false)
+    }
+    it("should return given range if already dirty") {
+      val commits = List(
+        createCommit("A", "1st", "1st"),
+        createCommit("B", "2nd", "2nd"))
+      val graph = repository.listCommits(commits.head, commits.last)
+      val range = graph.selectRange(Seq(0))
+      repository.resetSoft(commits(0))
+      val result = graph.applyInteractively(range)
+      result.left.value should equal (range)
     }
   }
 }

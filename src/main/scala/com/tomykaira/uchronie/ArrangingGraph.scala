@@ -1,7 +1,7 @@
 package com.tomykaira.uchronie
 
 import org.eclipse.jgit.revwalk.RevCommit
-import org.eclipse.jgit.lib.ObjectId
+import org.eclipse.jgit.lib.{Constants, ObjectId}
 import scala.annotation.tailrec
 import org.eclipse.jgit.api.ResetCommand
 
@@ -85,6 +85,21 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     repository.resetHard(commit)
     repository.resetSoft(parent(commit))
     new GraphRange(this, orphans)
+  }
+
+  def applyInteractively(range: GraphRange): Either[GraphRange, ArrangingGraph] = {
+    if (!repository.isClean)
+      return Left(range)
+    @tailrec
+    def loop(commits: List[RevCommit]): Either[GraphRange, ArrangingGraph] = commits match {
+      case Nil => Right(repository.listCommits(start, repository.resolve(Constants.HEAD).get))
+      case x :: xs =>
+        repository.cherryPick(x) match {
+          case Left(err) => println(err); Left(new GraphRange(this, xs.reverse))
+          case Right(_) => loop(xs)
+        }
+    }
+    loop(range.commits.reverse)
   }
 
   private def isSequentialSlice(part: List[RevCommit]): Boolean = commits.containsSlice(part)

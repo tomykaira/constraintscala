@@ -90,6 +90,9 @@ class GitRepository(rootPath: File) {
     git.commit().setMessage(message).call()
   }
 
+  def isClean: Boolean =
+    git.status.call.isClean
+
   def formatDiff(entry: DiffEntry): String = {
     diffFormatter.format(entry)
     val result = diffStream.toString("UTF-8")
