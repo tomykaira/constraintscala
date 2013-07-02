@@ -19,11 +19,22 @@ object Main extends SimpleSwingApplication {
     }
     val commitsTable = new CommitsTable(graphConstraint)
 
-    val changedFiles = new FileList(commitsTable.selectedCommit.convert({
-      case Some(commit) => repository.diff(commit)
-      case None => Nil
+    commitsTable.state.onChange({
+      case commitsTable.Dropped(range, at) =>
+        updateGraphWithRearranged(graphConstraint.get.reorder(range, at))
+      case _ =>
+    })
+
+    val changedFiles = new FileList(commitsTable.state.convert({
+      case commitsTable.RowsSelected(range) =>
+        range.first.map(c => repository.diff(c)).getOrElse(Nil)
+      case _ => Nil
     }))
-    val comment = new CommentArea(commitsTable.selectedCommit)
+    val comment = new CommentArea(commitsTable.state.convert({
+      case commitsTable.RowsSelected(range) =>
+        range.first
+      case _ => None
+    }))
     comment.editFSM.onChange({
       case comment.Committing(commit, message) =>
         val result = graphConstraint.get.updateComment(commit, message)
@@ -49,7 +60,11 @@ object Main extends SimpleSwingApplication {
         contents += new Button("Squash") {
           reactions += {
             case e: ButtonClicked =>
-              updateGraphWithRearranged(commitsTable.selectedRange.get.squash())
+              commitsTable.state.get match {
+                case commitsTable.RowsSelected(range) =>
+                  updateGraphWithRearranged(range.squash())
+                case _ =>
+              }
           }
         }
       }

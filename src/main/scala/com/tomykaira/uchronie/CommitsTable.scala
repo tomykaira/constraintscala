@@ -2,7 +2,7 @@ package com.tomykaira.uchronie
 
 import scala.swing.{Dialog, Table}
 import javax.swing.table.DefaultTableModel
-import com.tomykaira.constraintscala.{StaticConstraint, Constraint}
+import com.tomykaira.constraintscala.{Transition, FSM, StaticConstraint, Constraint}
 import org.eclipse.jgit.revwalk.RevCommit
 import javax.swing._
 import java.awt.datatransfer.{Transferable, DataFlavor}
@@ -11,6 +11,12 @@ import scala.Some
 import scala.swing.event.TableRowsSelected
 
 class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
+  sealed trait OperationState
+  case class NoOperation() extends OperationState
+  case class RowsSelected(range: GraphRange) extends OperationState
+  case class Dragging(range: GraphRange) extends OperationState
+  case class Dropped(range: GraphRange, at: Int) extends OperationState
+
   override lazy val model = super.model.asInstanceOf[DefaultTableModel]
   autoResizeMode = Table.AutoResizeMode.LastColumn
 
@@ -21,22 +27,22 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
 
   peer.getColumnModel.getColumn(0).setMaxWidth(100)
 
+  val state = new FSM[OperationState] {
+    state = NoOperation()
+  }
   def selectedRow: Option[Int] = {
     val row = peer.getSelectedRow
     if (row == -1) None else Some(row)
   }
 
-  val selectedCommit = new Constraint[Option[RevCommit]]({
-    selectedRow.flatMap(row => graph.get(row))
-  })
-  val selectedRange = new Constraint[GraphRange]({
-    graph.get.selectRange(peer.getSelectedRows)
-  })
-
   reactions += {
-    case e: TableRowsSelected if !e.adjusting => {
-      selectedCommit.invalidate()
-      selectedRange.invalidate()
+    case _: TableRowsSelected => {
+      val range = peer.getSelectedRows
+      if (range.isEmpty) {
+        state.changeStateTo(NoOperation())
+      } else {
+        state.changeStateTo(RowsSelected(graph.get.selectRange(range)))
+      }
     }
   }
 
@@ -57,17 +63,16 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
   peer.setDragEnabled(true)
 
   class CommitTransferHandler extends TransferHandler {
-    private val flavor = new ActivationDataFlavor(classOf[GraphRange], DataFlavor.javaJVMLocalObjectMimeType, "Part of ArrangingGraph object")
+    private val flavor = new ActivationDataFlavor(classOf[Object], DataFlavor.javaJVMLocalObjectMimeType, "Part of ArrangingGraph object")
 
     override def createTransferable(c: JComponent): Transferable = {
-      val table = c.asInstanceOf[JTable]
-      new DataHandler(selectedRange.get, flavor.getMimeType)
+      state.changeState({ case RowsSelected(range) => Dragging(range) })
+      new DataHandler(state, flavor.getMimeType)
     }
 
     override def canImport(support: TransferHandler.TransferSupport): Boolean = {
       support.isDrop &&
-        support.isDataFlavorSupported(flavor) &&
-        graph.get.contains(graphRange(support))
+        state.get.isInstanceOf[Dragging]
     }
 
     override def getSourceActions(c: JComponent): Int = TransferHandler.MOVE
@@ -75,17 +80,11 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
     override def importData(support: TransferHandler.TransferSupport): Boolean = {
       if (!canImport(support)) return false
       val dl = support.getDropLocation.asInstanceOf[JTable.DropLocation]
-      graph.get.reorder(graphRange(support), dl.getRow) match {
-        case Left(err) =>
-          Dialog.showMessage(title = "Error", message = err)
-          false
-        case Right(next) =>
-          graph.update(next)
-          true
-      }
-    }
+      state.changeState({ case Dragging(range) => Dropped(range, dl.getRow) })
 
-    private def graphRange(support: TransferHandler.TransferSupport): GraphRange =
-      support.getTransferable.getTransferData(flavor).asInstanceOf[GraphRange]
+      // dropping action always fails.
+      // update of constraint handles result
+      false
+    }
   }
 }

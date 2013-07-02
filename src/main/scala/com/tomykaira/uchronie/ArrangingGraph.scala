@@ -108,4 +108,8 @@ class GraphRange(val graph: ArrangingGraph, val commits: List[RevCommit]) {
   }
 
   def isEmpty: Boolean = commits.isEmpty
+
+  def first: Option[RevCommit] = {
+    commits.headOption
+  }
 }
