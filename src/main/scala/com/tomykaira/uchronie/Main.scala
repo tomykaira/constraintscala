@@ -37,9 +37,9 @@ object Main extends SimpleSwingApplication {
       })
     }
 
-    val commitsController = new BoxPanel(Orientation.Vertical) {
-      contents += commitsTable
-      contents += new GridPanel(1, 2) {
+    val commitsController = new BorderPanel() {
+      val buttons = new GridPanel(1, 2) {
+        maximumSize = new Dimension(Integer.MAX_VALUE, 50)
         contents += new Button("Update message (Ctrl+Enter)") {
           reactions += {
             case e: ButtonClicked => comment.editFSM.startCommit()
@@ -57,11 +57,17 @@ object Main extends SimpleSwingApplication {
           }
         }
       }
+      add(commitsTable, BorderPanel.Position.Center)
+      add(buttons, BorderPanel.Position.South)
     }
 
     contents = new SplitPane(Orientation.Vertical,
-      new SplitPane(Orientation.Horizontal, commitsController, comment),
-      new SplitPane(Orientation.Horizontal, changedFiles, changes))
+      new SplitPane(Orientation.Horizontal, commitsController, comment) {
+        dividerLocation = 200
+      },
+      new SplitPane(Orientation.Horizontal, changedFiles, changes) {
+        dividerLocation = 200
+      })
   }
 
   var repository: GitRepository = _
