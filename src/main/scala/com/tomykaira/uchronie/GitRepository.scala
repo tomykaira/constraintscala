@@ -31,14 +31,13 @@ class GitRepository(rootPath: File) {
   def abbreviate(objectId: AnyObjectId): AbbreviatedObjectId =
     repository.getObjectDatabase.newReader.abbreviate(objectId)
 
-  def resolve(sha1: String): Option[ObjectId] = {
-    if (sha1.isEmpty)
-      return None
-    val candidates = repository.getObjectDatabase.newReader.resolve(AbbreviatedObjectId.fromString(sha1))
-    if (candidates.size() == 1)
-      Some(candidates.asScala.head)
-    else
-      None
+  def resolve(ref: String): Option[ObjectId] = {
+    try {
+      val result = repository.resolve(ref)
+      if (result == null) None else Some(result)
+    } catch {
+      case e: Exception => None
+    }
   }
 
   def toCommit(id: ObjectId): RevCommit = {

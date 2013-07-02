@@ -130,7 +130,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       val range = graph.selectRange(Seq(0))
       val result = graph.reorder(range, 2)
       result should be ('left)
-      repository.repository.resolve(Constants.HEAD) should equal (commits.last.getId)
+      repository.resolve(Constants.HEAD).get should equal (commits.last.getId)
     }
   }
 
