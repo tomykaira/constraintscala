@@ -6,6 +6,7 @@ import com.tomykaira.constraintscala.{FSM, StaticConstraint}
 import scala.swing.event.ButtonClicked
 import org.eclipse.jgit.revwalk.RevCommit
 import scala.annotation.tailrec
+import javax.swing.border.EmptyBorder
 
 object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
@@ -142,7 +143,7 @@ object Main extends SimpleSwingApplication {
           }
         }
       }
-      add(commitsTable, BorderPanel.Position.Center)
+      add(new ScrollPane(commitsTable) { border = new EmptyBorder(0,0,0,0) }, BorderPanel.Position.Center)
       add(buttons, BorderPanel.Position.South)
     }
 
