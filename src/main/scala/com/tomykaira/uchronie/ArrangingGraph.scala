@@ -95,7 +95,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
       case Nil => Right(repository.listCommits(start, repository.resolve(Constants.HEAD).get))
       case x :: xs =>
         repository.cherryPick(x) match {
-          case Left(err) => println(err); Left(new GraphRange(this, xs.reverse))
+          case Left(err) => Left(new GraphRange(this, xs.reverse))
           case Right(_) => loop(xs)
         }
     }
