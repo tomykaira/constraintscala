@@ -17,17 +17,4 @@ class CommitDecoratorSpec extends FunSpec with BeforeAndAfter with ShouldMatcher
       row(1).asInstanceOf[String] should equal ("Comment head")
     }
   }
-
-  describe("fullDiff") {
-    it("should include diff of all files") {
-      firstCommit
-      addFile("test", "goodbye")
-      addFile("test2", "Hello2")
-      val commit = doCommit("Two files")
-      val diff = new CommitDecorator(commit).fullDiff(repository)
-      diff should include ("a/test")
-      diff should include ("b/test")
-      diff should include ("b/test2")
-    }
-  }
 }
