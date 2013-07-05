@@ -29,7 +29,21 @@ trait GitSpecHelper {
     repository = new GitRepository(dotGit)
   }
 
+  def git: Git = Git.open(dotGit)
+
   def createCommit(path: String, content: String, message: String): RevCommit = {
+    addFile(path, content)
+    doCommit(message)
+  }
+
+  def doCommit(message: String): RevCommit = {
+    val commit = git.commit().setAll(true).setMessage(message).call()
+    if (commit == null)
+      throw new GitSpecHelperException("commit is null")
+    commit
+  }
+
+  def addFile(path: String, content: String) {
     val file = new File(repoRoot, path)
     if (!file.getParentFile.exists())
       if (!file.getParentFile.mkdirs())
@@ -44,12 +58,7 @@ trait GitSpecHelper {
       writer.close()
     }
 
-    val git = Git.open(dotGit)
     git.add().addFilepattern(path).call()
-    val commit = git.commit().setOnly(path).setMessage(message).call()
-    if (commit == null)
-      throw new GitSpecHelperException("commit is null")
-    commit
   }
 
   def createCommit(message: String): RevCommit =
