@@ -118,7 +118,11 @@ object Main extends SimpleSwingApplication {
             case e: ButtonClicked =>
               commitsTable.state.get match {
                 case commitsTable.RowsSelected(range) =>
-                  updateGraphWithRearranged(range.squash())
+                  val newMessage = comment.messageFSM.get match {
+                    case comment.Editing(_) => Some(comment.text)
+                    case _ => None
+                  }
+                  updateGraphWithRearranged(range.squash(newMessage))
                 case _ =>
               }
           }

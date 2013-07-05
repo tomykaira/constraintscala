@@ -40,9 +40,10 @@ class CommentArea(constraint: Constraint[Option[RevCommit]]) extends TextArea {
   })
 
   reactions += {
-    case e: ValueChanged =>
-      messageFSM.changeState({ case Selected(commit) => Editing(commit) })
-    case e: KeyReleased if (e.modifiers & InputEvent.CTRL_DOWN_MASK) == InputEvent.CTRL_DOWN_MASK && e.key == Key.Enter =>
-      messageFSM.changeState({ case Editing(commit) => Committing(commit, text) })
+    case e: KeyReleased =>
+      if((e.modifiers & InputEvent.CTRL_DOWN_MASK) == InputEvent.CTRL_DOWN_MASK && e.key == Key.Enter)
+        messageFSM.changeState({ case Editing(commit) => Committing(commit, text) })
+      else
+        messageFSM.changeState({ case Selected(commit) => Editing(commit) })
   }
 }
