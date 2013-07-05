@@ -104,7 +104,8 @@ object Main extends SimpleSwingApplication {
     val changes = new TextArea() {
       editable = false
       changedFiles.selectedItem.onChange({
-        case Some(diff) => text = new DiffDecorator(diff).formatted(repository)
+        case Some(AllFiles(diffs)) => text = new DiffListDecorator(diffs).fullDiff(repository)
+        case Some(FileDiff(diff)) => text = new DiffDecorator(diff).formatted(repository)
         case None =>
       })
     }
