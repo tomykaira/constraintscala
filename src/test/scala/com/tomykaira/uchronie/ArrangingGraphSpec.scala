@@ -144,30 +144,36 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("squash") {
     it("should do nothing if no commit is selected") {
       new Fixture {
-        emptyRange.squash().right.value should equal (graph)
+        emptyRange.squash(None).right.value should equal (graph)
       }
     }
     it("should do nothing if 1 commit is selected") {
       new Fixture {
-        graph.selectRange(Seq(2)).squash().right.value should equal (graph)
+        graph.selectRange(Seq(2)).squash(None).right.value should equal (graph)
       }
     }
     it("should squash 2 commits into one") {
       new Fixture {
-        val result = graph.selectRange(Seq(1,2)).squash()
+        val result = graph.selectRange(Seq(1,2)).squash(None)
         messages(result.right.value) should equal (List("4th", "2nd\n\n3rd"))
       }
     }
     it("should squash 3 commits into one") {
       new Fixture {
-        val result = graph.selectRange(Seq(0,1,2)).squash()
+        val result = graph.selectRange(Seq(0,1,2)).squash(None)
         messages(result.right.value) should equal (List("2nd\n\n3rd\n\n4th"))
       }
     }
     it("should fail without operation if range is not sequential") {
       new Fixture {
-        val result = graph.selectRange(Seq(0,2)).squash()
+        val result = graph.selectRange(Seq(0,2)).squash(None)
         result should be ('left)
+      }
+    }
+    it("should accept the new commit message") {
+      new Fixture {
+        val result = graph.selectRange(Seq(1,2)).squash(Some("new message"))
+        messages(result.right.value) should equal (List("4th", "new message"))
       }
     }
   }

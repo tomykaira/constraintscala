@@ -56,19 +56,23 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     finishUpdate(applyCommits(common, todo))
   }
 
-  def squash(range: GraphRange): Either[String, ArrangingGraph] = {
+  def squash(range: GraphRange, newMessage: Option[String]): Either[String, ArrangingGraph] = {
     if(range.commits.size <= 1) return Right(this)
     if(!isSequentialSlice(range.commits))
       return Left("Only sequential commits can be squashed.\nReorder commits before squashing")
 
     val squashLast: RevCommit = range.commits.head
     val orphans = commits.takeWhile(_ != squashLast)
-    val messageBuilder = range.commits.reverse.map(_.getFullMessage.stripLineEnd).addString(new StringBuilder, "\n\n")
+    val message = newMessage.getOrElse(buildSquashMessage(range).mkString)
 
     repository.resetHard(squashLast)
     repository.resetSoft(parent(range.commits.last))
-    val newHead = repository.commit(messageBuilder.mkString)
+    val newHead = repository.commit(message)
     finishUpdate(applyCommits(newHead, orphans.reverse))
+  }
+
+  private[this] def buildSquashMessage(range: GraphRange): StringBuilder = {
+    range.commits.reverse.map(_.getFullMessage.stripLineEnd).addString(new StringBuilder, "\n\n")
   }
 
   def delete(range: GraphRange): Either[String, ArrangingGraph] = {
@@ -138,8 +142,8 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
 }
 
 class GraphRange(val graph: ArrangingGraph, val commits: List[RevCommit]) {
-  def squash(): Either[String, ArrangingGraph] = {
-    graph.squash(this)
+  def squash(newMessage: Option[String]): Either[String, ArrangingGraph] = {
+    graph squash(this, newMessage)
   }
 
   def delete(): Either[String, ArrangingGraph] = {
