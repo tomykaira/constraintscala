@@ -68,7 +68,8 @@ class GitRepository(rootPath: File) {
 
   def diff(commit: RevCommit): List[DiffEntry] = {
     val oldParser = new CanonicalTreeParser()
-    oldParser.reset(repository.newObjectReader(), commit.getParent(0).getTree)
+    val parent = toCommit(commit.getParent(0).getId)
+    oldParser.reset(repository.newObjectReader(), parent.getTree)
     val newParser = new CanonicalTreeParser()
     newParser.reset(repository.newObjectReader(), commit.getTree)
     git.diff().setOldTree(oldParser).setNewTree(newParser).call().asScala.toList
