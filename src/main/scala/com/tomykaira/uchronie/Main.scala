@@ -206,6 +206,11 @@ object Main extends SimpleSwingApplication {
       new SplitPane(Orientation.Horizontal, scrollable(changedFiles), scrollable(changes)) {
         dividerLocation = 200
       })
+
+    override def closeOperation() {
+      repository.resetToOriginalBranch()
+      super.closeOperation()
+    }
   }
 
   var repository: GitRepository = _

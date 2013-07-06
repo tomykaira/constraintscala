@@ -3,6 +3,7 @@ package com.tomykaira.uchronie
 import org.scalatest.{BeforeAndAfter, FunSpec}
 import org.scalatest.matchers.ShouldMatchers
 import org.eclipse.jgit.revwalk.RevCommit
+import org.eclipse.jgit.lib.Constants
 
 class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -81,6 +82,27 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
       val diff = repository.diff(commit)
       diff should have length 1
       diff(0).getNewPath should equal ("test")
+    }
+  }
+
+  describe("resetToOriginalBranch") {
+    it("should checkout master") {
+      repository.resetToOriginalBranch()
+      repository.repository.getBranch should equal ("master")
+    }
+    it("should not change HEAD") {
+      secondCommit
+      val beforeHead = repository.resolve(Constants.HEAD)
+      repository.resetToOriginalBranch()
+      val afterHead = repository.resolve(Constants.HEAD)
+      afterHead should equal (beforeHead)
+    }
+    it("should delete working branch") {
+      secondCommit
+      val workBranch = repository.repository.getBranch
+      repository.resetToOriginalBranch()
+      val afterHead = repository.resolve(workBranch)
+      afterHead should be (None)
     }
   }
 }

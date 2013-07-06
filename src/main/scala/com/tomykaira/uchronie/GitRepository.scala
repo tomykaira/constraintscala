@@ -3,7 +3,7 @@ package com.tomykaira.uchronie
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import java.io.{ByteArrayOutputStream, File}
 import org.eclipse.jgit.revwalk.{RevCommit, RevWalk}
-import org.eclipse.jgit.lib.{AbbreviatedObjectId, AnyObjectId, ObjectId}
+import org.eclipse.jgit.lib.{Constants, AbbreviatedObjectId, AnyObjectId, ObjectId}
 import scala.collection.JavaConverters.{asScalaIteratorConverter,collectionAsScalaIterableConverter}
 import org.eclipse.jgit.api._
 import scala.Some
@@ -23,6 +23,7 @@ class GitRepository(rootPath: File) {
   diffFormatter.setRepository(repository)
 
   // setup work branch
+  private val originalBranch = repository.getFullBranch
   private lazy val workBranch = "uchronie" + System.currentTimeMillis()
   val command = git.checkout.setName(workBranch).setCreateBranch(true)
   command.call()
@@ -98,5 +99,13 @@ class GitRepository(rootPath: File) {
     val result = diffStream.toString("UTF-8")
     diffStream.reset()
     result
+  }
+
+  def resetToOriginalBranch() {
+    resolve(Constants.HEAD) foreach { head =>
+      git.checkout().setName(originalBranch).call()
+      resetHard(head)
+      git.branchDelete().setBranchNames(workBranch).setForce(true).call()
+    }
   }
 }
