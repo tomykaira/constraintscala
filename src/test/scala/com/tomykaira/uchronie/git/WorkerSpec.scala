@@ -19,7 +19,7 @@ class WorkerSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
   }
 
   trait Utilities {
-    val commits: List[RevCommit]
+    val commits: List[Commit]
     lazy val graph = repository.listCommits(commits.head, commits.last)
     lazy val first = commits(0)
     lazy val second = commits(1)

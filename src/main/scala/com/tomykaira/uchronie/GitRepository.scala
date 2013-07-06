@@ -34,7 +34,7 @@ class GitRepository(rootPath: File) {
     val walk = new RevWalk(repository)
     walk.markStart(walk.parseCommit(end))
     walk.markUninteresting(walk.parseCommit(start))
-    new ArrangingGraph(this, start, walk.iterator().asScala.toList)
+    ArrangingGraph(this, start, walk.iterator().asScala.toList)
   }
 
   def abbreviate(objectId: AnyObjectId): AbbreviatedObjectId =

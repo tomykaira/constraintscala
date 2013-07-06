@@ -6,6 +6,7 @@ import org.scalatest.EitherValues._
 import org.eclipse.jgit.lib.{IndexDiff, Constants}
 import org.eclipse.jgit.treewalk.FileTreeIterator
 import org.eclipse.jgit.revwalk.RevCommit
+import com.tomykaira.uchronie.git.Commit
 
 class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -13,7 +14,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   }
 
   trait GraphUtilities {
-    val commits: List[RevCommit]
+    val commits: List[Commit]
     lazy val graph = repository.listCommits(commits.head, commits.last)
     lazy val first = commits(0)
     lazy val second = commits(1)
@@ -110,7 +111,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       new Fixture {
         val range = graph.selectRange(Seq(2))
         val newCommits = graph.reorder(range, 0).right.value.commits
-        newCommits(0).getParent(0) should equal (newCommits(1))
+        newCommits(0).getParent(0) should equal (newCommits(1).raw)
       }
     }
     it("should reorder two commits") {
@@ -196,7 +197,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     it("should checkout the parent of specified commit") {
       new Fixture {
         graph.startEdit(commits(2))
-        repository.resolve(Constants.HEAD).get should equal (commits(1))
+        repository.resolve(Constants.HEAD).get should equal (commits(1).raw)
       }
     }
     it("should have files indexed") {

@@ -3,6 +3,7 @@ package com.tomykaira.uchronie
 import java.io.{PrintWriter, File}
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.revwalk.RevCommit
+import com.tomykaira.uchronie.git.Commit
 
 trait GitSpecHelper {
   case class GitSpecHelperException(message: String) extends RuntimeException
@@ -32,12 +33,12 @@ trait GitSpecHelper {
 
   def git: Git = Git.open(dotGit)
 
-  def createCommit(path: String, content: String, message: String): RevCommit = {
+  def createCommit(path: String, content: String, message: String): Commit = {
     addFile(path, content)
     doCommit(message)
   }
 
-  def doCommit(message: String): RevCommit = {
+  def doCommit(message: String): Commit = {
     val commit = git.commit().setAll(true).setMessage(message).call()
     if (commit == null)
       throw new GitSpecHelperException("commit is null")
@@ -62,7 +63,7 @@ trait GitSpecHelper {
     git.add().addFilepattern(path).call()
   }
 
-  def createCommit(message: String): RevCommit =
+  def createCommit(message: String): Commit =
     createCommit("testFile", message, message)
 
   def firstCommit =

@@ -14,8 +14,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.swing.event.ButtonClicked
-import com.tomykaira.uchronie.git.UpdateComment
-import com.tomykaira.uchronie.git.Reorder
+import com.tomykaira.uchronie.git.{Reorder, Commit, UpdateComment}
 import scala.Some
 import javax.swing.text.DefaultCaret
 

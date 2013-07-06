@@ -1,17 +1,23 @@
 package com.tomykaira.uchronie
 
-import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.lib.{Constants, ObjectId}
 import scala.annotation.tailrec
-import org.eclipse.jgit.api.ResetCommand
+import com.tomykaira.uchronie.git.{Picked, RawCommit, Commit}
+import org.eclipse.jgit.revwalk.RevCommit
 
-class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val commits: List[RevCommit]) {
-  private lazy val startCommit: RevCommit = repository.toCommit(start)
+object ArrangingGraph {
+  def apply(repository: GitRepository, start: ObjectId, commits: List[RevCommit]): ArrangingGraph = {
+    new ArrangingGraph(repository, start, commits.map(Commit.revCommitToRawCommit(_)))
+  }
+}
+
+class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val commits: List[Commit]) {
+  private lazy val startCommit: Commit = RawCommit(repository.toCommit(start))
   private lazy val last = commits.headOption.getOrElse(startCommit)
 
   rollback()
 
-  def apply(nth: Int): Option[RevCommit] = {
+  def apply(nth: Int): Option[Commit] = {
     if (commits.indices.contains(nth))
       Some(commits(nth))
     else
@@ -22,7 +28,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     repository.resetHard(last)
   }
 
-  def updateComment(target: RevCommit, message: String): Either[String, ArrangingGraph] = {
+  def updateComment(target: Commit, message: String): Either[String, ArrangingGraph] = {
     val result = for { // FIXME
       index <- (commits.indexOf(target) match {
         case -1 => Left("Target " + target.getName + " not included in current list")
@@ -60,7 +66,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     if(!isSequentialSlice(range.commits))
       return Left("Only sequential commits can be squashed.\nReorder commits before squashing")
 
-    val squashLast: RevCommit = range.commits.head
+    val squashLast: Commit = range.commits.head
     val orphans = commits.takeWhile(_ != squashLast)
     val message = newMessage.getOrElse(range.squashMessage)
 
@@ -79,7 +85,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     finishUpdate(applyCommits(common, todo))
   }
 
-  def startEdit(commit: RevCommit): GraphRange = {
+  def startEdit(commit: Commit): GraphRange = {
     val orphans = commits.takeWhile(_ != commit)
     repository.resetHard(commit)
     repository.resetSoft(parent(commit))
@@ -90,7 +96,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     if (!repository.isClean)
       return Left(range)
     @tailrec
-    def loop(commits: List[RevCommit]): Either[GraphRange, ArrangingGraph] = commits match {
+    def loop(commits: List[Commit]): Either[GraphRange, ArrangingGraph] = commits match {
       case Nil => Right(repository.listCommits(start, repository.resolve(Constants.HEAD).get))
       case x :: xs =>
         repository.cherryPick(x) match {
@@ -101,10 +107,10 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     loop(range.commits.reverse)
   }
 
-  private def isSequentialSlice(part: List[RevCommit]): Boolean = commits.containsSlice(part)
+  private def isSequentialSlice(part: List[Commit]): Boolean = commits.containsSlice(part)
 
   // parent in the target graph
-  private def parent(commit: RevCommit): RevCommit = {
+  private def parent(commit: Commit): Commit = {
     val index = commits.indexOf(commit)
     if(index != -1 && commits.indices.contains(index + 1))
       commits(index+1)
@@ -113,12 +119,12 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
   }
 
   // commits should be ordered from old to new
-  private def applyCommits(first: RevCommit, commits: List[RevCommit]): Either[String, RevCommit] = {
-    commits.foldLeft[Either[String, RevCommit]](Right(first))(
-      (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c)))
+  private def applyCommits(first: Commit, commits: List[Commit]): Either[String, Commit] = {
+    commits.foldLeft[Either[String, Commit]](Right(first))(
+      (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c).right.map[Commit](rev => Picked(rev, c))))
   }
 
-  private def finishUpdate(newLast: Either[String, RevCommit]): Either[String, ArrangingGraph] = {
+  private def finishUpdate(newLast: Either[String, Commit]): Either[String, ArrangingGraph] = {
     newLast match {
       case Left(err) =>
         rollback()
@@ -136,7 +142,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
   }
 }
 
-class GraphRange(val graph: ArrangingGraph, val commits: List[RevCommit]) {
+class GraphRange(val graph: ArrangingGraph, val commits: List[Commit]) {
   def squash(newMessage: Option[String]): Either[String, ArrangingGraph] = {
     graph squash(this, newMessage)
   }
@@ -150,7 +156,7 @@ class GraphRange(val graph: ArrangingGraph, val commits: List[RevCommit]) {
 
   def isEmpty: Boolean = commits.isEmpty
 
-  def first: Option[RevCommit] = {
+  def first: Option[Commit] = {
     commits.headOption
   }
 

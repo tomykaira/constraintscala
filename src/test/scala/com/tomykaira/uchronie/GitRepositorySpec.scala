@@ -34,7 +34,7 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
   describe("toCommit") {
     it("should convert ObjectId to RevCommit") {
       val commit = firstCommit
-      repository.toCommit(commit.getId) should equal (commit)
+      repository.toCommit(commit.getId) should equal (commit.raw)
     }
   }
 
