@@ -19,6 +19,10 @@ class Worker extends Actor {
       respondResult(graph.updateComment(target, message))
     case (c @ Reorder(graph, range, pos)) =>
       respondResult(graph.reorder(range, pos))
+    case (c @ Squash(graph, range, message)) =>
+      respondResult(graph.squash(range, message))
+    case (c @ Delete(graph, range)) =>
+      respondResult(graph.delete(range))
   }
 
   def respondResult(result: Either[String, ArrangingGraph]) {

@@ -93,4 +93,30 @@ class WorkerSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
       }
     }
   }
+
+  describe("Squash command") {
+    it("should squash 2 commits into one") {
+      new Fixture {
+        dispatch(Squash(graph, graph.selectRange(Seq(1,2)), None)).onSuccess {
+          case newGraph =>
+            w { messages(newGraph) should equal (List("4th", "2nd\n\n3rd")) }
+            w.dismiss()
+        }
+        w.await()
+      }
+    }
+  }
+
+  describe("Delete command") {
+    it("should delete a commit") {
+      new Fixture {
+        dispatch(Delete(graph, graph.selectRange(Seq(1)))).onSuccess {
+          case newGraph =>
+            w { messages(newGraph) should equal (List("4th", "2nd")) }
+            w.dismiss()
+        }
+        w.await()
+      }
+    }
+  }
 }
