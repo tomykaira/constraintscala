@@ -48,12 +48,45 @@ class WorkerSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
       createCommit("D", "4th", "4th"))
   }
 
+  trait ConflictFixture extends Utilities {
+    val commits = List(
+      createCommit("A", "1st", "1st"),
+      createCommit("A", "2nd", "2nd"),
+      createCommit("A", "3rd", "3rd"),
+      createCommit("A", "4th", "4th"))
+  }
+
   describe("UpdateComment command") {
     it("should update commit comment") {
       new Fixture {
         dispatch(UpdateComment(graph, third, "New 3rd")).onSuccess {
           case newGraph =>
             w { messages(newGraph) should equal (List("4th", "New 3rd", "2nd")) }
+            w.dismiss()
+        }
+        w.await()
+      }
+    }
+  }
+
+  describe("Reorder command") {
+    it("should reorder commits to move the last row to the top") {
+      new Fixture {
+        val range = graph.selectRange(Seq(2))
+        dispatch(Reorder(graph, range, 0)).onSuccess {
+          case newGraph =>
+            w { messages(newGraph) should equal (List("2nd", "4th", "3rd")) }
+            w.dismiss()
+        }
+        w.await()
+      }
+    }
+    it("should report failure if cherry-pick failed") {
+      new ConflictFixture {
+        val range = graph.selectRange(Seq(2))
+        dispatch(Reorder(graph, range, 0)).onFailure {
+          case error =>
+            w { error.getMessage should include ("Cherry-pick failed") }
             w.dismiss()
         }
         w.await()

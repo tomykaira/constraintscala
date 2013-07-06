@@ -15,9 +15,10 @@ class Worker extends Actor {
   }
 
   def receive = {
-    case (c @ UpdateComment(graph, target, message)) => {
+    case (c @ UpdateComment(graph, target, message)) =>
       respondResult(graph.updateComment(target, message))
-    }
+    case (c @ Reorder(graph, range, pos)) =>
+      respondResult(graph.reorder(range, pos))
   }
 
   def respondResult(result: Either[String, ArrangingGraph]) {
