@@ -5,6 +5,7 @@ import org.eclipse.jgit.revwalk.RevCommit
 import com.tomykaira.constraintscala.{Transition, FSM, Constraint}
 import scala.swing.event.{ValueChanged, Key, KeyReleased}
 import java.awt.event.InputEvent
+import javax.swing.text.DefaultCaret
 
 class CommentArea(constraint: Constraint[Option[RevCommit]]) extends TextArea {
   sealed trait MessageState
@@ -16,6 +17,7 @@ class CommentArea(constraint: Constraint[Option[RevCommit]]) extends TextArea {
   listenTo(keys)
 
   tooltip = "Edit and Ctrl+Enter to update the commit message"
+  peer.getCaret.asInstanceOf[DefaultCaret].setUpdatePolicy(DefaultCaret.UPDATE_WHEN_ON_EDT)
 
   val messageFSM = new FSM[MessageState] {
     state = NothingSelected()

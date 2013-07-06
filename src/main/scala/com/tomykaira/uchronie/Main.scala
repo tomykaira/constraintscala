@@ -17,6 +17,7 @@ import scala.swing.event.ButtonClicked
 import com.tomykaira.uchronie.git.UpdateComment
 import com.tomykaira.uchronie.git.Reorder
 import scala.Some
+import javax.swing.text.DefaultCaret
 
 object Main extends SimpleSwingApplication {
   val system = ActorSystem("Worker")
@@ -147,7 +148,13 @@ object Main extends SimpleSwingApplication {
         case Some(FileDiff(diff)) => text = new DiffDecorator(diff).formatted(repository)
         case None =>
       })
+      peer.getCaret.asInstanceOf[DefaultCaret].setUpdatePolicy(DefaultCaret.NEVER_UPDATE)
     }
+
+    def scrollable(c: Component): ScrollPane =
+      new ScrollPane(c) {
+        border = new EmptyBorder(0,0,0,0)
+      }
 
     val commitsController = new BorderPanel() {
       val buttons = new GridPanel(1, 2) {
@@ -188,15 +195,15 @@ object Main extends SimpleSwingApplication {
         }
       }
       add(progressBar, BorderPanel.Position.North)
-      add(new ScrollPane(commitsTable) { border = new EmptyBorder(0,0,0,0) }, BorderPanel.Position.Center)
+      add(scrollable(commitsTable), BorderPanel.Position.Center)
       add(buttons, BorderPanel.Position.South)
     }
 
     contents = new SplitPane(Orientation.Vertical,
-      new SplitPane(Orientation.Horizontal, commitsController, comment) {
+      new SplitPane(Orientation.Horizontal, commitsController, scrollable(comment)) {
         dividerLocation = 200
       },
-      new SplitPane(Orientation.Horizontal, changedFiles, changes) {
+      new SplitPane(Orientation.Horizontal, scrollable(changedFiles), scrollable(changes)) {
         dividerLocation = 200
       })
   }
