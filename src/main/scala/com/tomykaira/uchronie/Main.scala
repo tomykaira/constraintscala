@@ -217,6 +217,8 @@ object Main extends SimpleSwingApplication {
       case Left(e) => sys.error(e)
       case Right(parsed) =>
         repository = new GitRepository(parsed.repository)
+        if (!repository.isClean)
+          sys.error("Repository is not clean.  Commit everything before start uchronie for safety.")
         repository.resolve(parsed.start) match {
           case Some(id) => start = id
           case None => sys.error("Start SHA-1 " + parsed.start + " is not resolved to one object id")
