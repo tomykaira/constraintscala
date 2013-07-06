@@ -27,10 +27,27 @@ object Main extends SimpleSwingApplication {
 
     val graph = repository.listCommits(start, end)
     val graphConstraint = new StaticConstraint[ArrangingGraph](graph)
+    val progressBar = new ProgressBar { indeterminate = false }
+
+    sealed trait ProcessingState
+    case class Working() extends ProcessingState
+    case class Stopped() extends ProcessingState
+    val processingFSM = new FSM[ProcessingState] {
+      state = Stopped()
+    }
+    processingFSM.onChange {
+      case Working() => progressBar.indeterminate = true
+      case Stopped() => progressBar.indeterminate = false
+    }
 
     def dispatch(c: Command) {
       implicit val timeout = Timeout(60 seconds)
+      processingFSM.changeStateTo(Working())
       val future = ask(actor, c).mapTo[ArrangingGraph]
+      future.onComplete {
+        case_ =>
+          processingFSM.changeStateTo(Stopped())
+      }
       future.onSuccess {
         case g => graphConstraint.update(g)
       }
@@ -40,6 +57,10 @@ object Main extends SimpleSwingApplication {
     }
 
     val commitsTable = new CommitsTable(graphConstraint)
+    processingFSM.onChange {
+      case Working() => commitsTable.enabled = false
+      case Stopped() => commitsTable.enabled = true
+    }
 
     sealed trait EditState
     case class NotEditing() extends EditState
@@ -166,6 +187,7 @@ object Main extends SimpleSwingApplication {
           }
         }
       }
+      add(progressBar, BorderPanel.Position.North)
       add(new ScrollPane(commitsTable) { border = new EmptyBorder(0,0,0,0) }, BorderPanel.Position.Center)
       add(buttons, BorderPanel.Position.South)
     }
