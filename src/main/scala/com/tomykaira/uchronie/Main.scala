@@ -3,23 +3,42 @@ package com.tomykaira.uchronie
 import scala.swing._
 import org.eclipse.jgit.lib.ObjectId
 import com.tomykaira.constraintscala.{FSM, StaticConstraint}
-import scala.swing.event.ButtonClicked
 import org.eclipse.jgit.revwalk.RevCommit
 import scala.annotation.tailrec
 import javax.swing.border.EmptyBorder
+import akka.actor.{Props, ActorSystem}
+import com.tomykaira.uchronie.git._
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.duration._
+import scala.language.postfixOps
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.swing.event.ButtonClicked
+import com.tomykaira.uchronie.git.UpdateComment
+import com.tomykaira.uchronie.git.Reorder
+import scala.Some
 
 object Main extends SimpleSwingApplication {
+  val system = ActorSystem("Worker")
+  val actor = system.actorOf(Props[Worker])
+
   def top: Frame = new MainFrame() {
     title = "Uchronie"
 
     val graph = repository.listCommits(start, end)
     val graphConstraint = new StaticConstraint[ArrangingGraph](graph)
-    def updateGraphWithRearranged(result: Either[String, ArrangingGraph]) {
-      result match {
-        case Left(err) => Dialog.showMessage(title = "Error", message = err)
-        case Right(g)  => graphConstraint.update(g)
+
+    def dispatch(c: Command) {
+      implicit val timeout = Timeout(60 seconds)
+      val future = ask(actor, c).mapTo[ArrangingGraph]
+      future.onSuccess {
+        case g => graphConstraint.update(g)
+      }
+      future.onFailure {
+        case err => Dialog.showMessage(title = "Error", message = err.getMessage)
       }
     }
+
     val commitsTable = new CommitsTable(graphConstraint)
 
     sealed trait EditState
@@ -81,7 +100,7 @@ object Main extends SimpleSwingApplication {
     commitsTable.state.onChange({
       case commitsTable.Dropped(range, at) =>
         commitsTable.state.changeStateTo(commitsTable.RowsSelected(range))
-        updateGraphWithRearranged(graphConstraint.get.reorder(range, at))
+        dispatch(Reorder(range.graph, range, at))
       case _ =>
     })
 
@@ -97,8 +116,7 @@ object Main extends SimpleSwingApplication {
     }))
     comment.messageFSM.onChange({
       case comment.Committing(commit, message) =>
-        val result = graphConstraint.get.updateComment(commit, message)
-        updateGraphWithRearranged(result)
+        dispatch(UpdateComment(graphConstraint.get, commit, message))
       case _ =>
     })
     val changes = new TextArea() {
@@ -122,7 +140,7 @@ object Main extends SimpleSwingApplication {
                     case comment.Editing(_) => Some(comment.text)
                     case _ => None
                   }
-                  updateGraphWithRearranged(range.squash(newMessage))
+                  dispatch(Squash(range.graph, range, newMessage))
                 case _ =>
               }
           }
@@ -132,7 +150,7 @@ object Main extends SimpleSwingApplication {
             case e: ButtonClicked =>
               commitsTable.state.get match {
                 case commitsTable.RowsSelected(range) =>
-                  updateGraphWithRearranged(range.delete())
+                  dispatch(Delete(range.graph, range))
                 case _ =>
               }
           }
