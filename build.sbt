@@ -16,7 +16,11 @@ libraryDependencies += "org.scala-lang" % "scala-swing" % "2.10.2"
 
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "3.0.0.201306101825-r"
 
-initialCommands := "import com.tomykaira.constraintscala._ com.tomykaira.uchronie._"
+libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "3.0.0.201306101825-r"
+
+libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.1.4"
+
+initialCommands := "import com.tomykaira.constraintscala._; import com.tomykaira.uchronie._"
 
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
