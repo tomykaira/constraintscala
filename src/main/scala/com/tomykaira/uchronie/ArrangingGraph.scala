@@ -8,9 +8,8 @@ import org.eclipse.jgit.api.ResetCommand
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val commits: List[RevCommit]) {
   private lazy val startCommit: RevCommit = repository.toCommit(start)
   private lazy val last = commits.headOption.getOrElse(startCommit)
-  private lazy val myBranchName = "temp" + hashCode + System.currentTimeMillis()
 
-  repository.checkoutAs(last, myBranchName)
+  rollback()
 
   def apply(nth: Int): Option[RevCommit] = {
     if (commits.indices.contains(nth))

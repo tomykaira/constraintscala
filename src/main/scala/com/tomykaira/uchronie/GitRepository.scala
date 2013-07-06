@@ -17,9 +17,17 @@ class GitRepository(rootPath: File) {
     findGitDir().
     build()
 
+  // setup diff formatter
   lazy val diffStream = new ByteArrayOutputStream
   lazy val diffFormatter = new DiffFormatter(diffStream)
   diffFormatter.setRepository(repository)
+
+  // setup work branch
+  private lazy val workBranch = "uchronie" + System.currentTimeMillis()
+  val command = git.checkout.setName(workBranch).setCreateBranch(true)
+  command.call()
+  if (command.getResult.getStatus != CheckoutResult.Status.OK)
+    throw new RuntimeException("Failed to initialize work branch")
 
   def listCommits(start: ObjectId, end: ObjectId): ArrangingGraph = {
     val walk = new RevWalk(repository)
@@ -45,15 +53,6 @@ class GitRepository(rootPath: File) {
   }
 
   def git: Git = new Git(repository)
-
-  def checkoutAs(commit: RevCommit, newBranchName: String): Either[String, RevCommit] = {
-    val command = git.checkout.setStartPoint(commit).setName(newBranchName).setCreateBranch(true)
-    command.call()
-    if (command.getResult.getStatus == CheckoutResult.Status.OK)
-      Right(commit)
-    else
-      Left("checkout failed")
-  }
 
   def amendMessage(message: String): RevCommit =
     git.commit.setAmend(true).setMessage(message).call()

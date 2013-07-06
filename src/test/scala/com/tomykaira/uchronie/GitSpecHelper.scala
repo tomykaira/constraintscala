@@ -26,6 +26,7 @@ trait GitSpecHelper {
     dotGit = new File(dir, org.eclipse.jgit.lib.Constants.DOT_GIT)
     if (!dotGit.exists())
       throw new GitSpecHelperException("Failed to initialize git repository under " + dir.toPath)
+    git.commit.setMessage("Initialize repository").call()
     repository = new GitRepository(dotGit)
   }
 
