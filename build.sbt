@@ -24,6 +24,8 @@ initialCommands := "import com.tomykaira.constraintscala._; import com.tomykaira
 
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
+fork in run := true
+
 mainClass := Some("com.tomykaira.uchronie.Main")
 
 assemblySettings
