@@ -26,7 +26,7 @@ class CommitSpec extends FunSpec with ShouldMatchers {
         Rename(Pick(Pick(core)), "B").simplify should equal (Rename(core, "B"))
       }
     }
-    describe("squash") {
+    describe("Squash") {
       it("should simplify each commit") {
         VirtualCommit.Squash(List(Pick(Pick(core))), "Foo").simplify should equal (VirtualCommit.Squash(List(Pick(core)), "Foo"))
       }
