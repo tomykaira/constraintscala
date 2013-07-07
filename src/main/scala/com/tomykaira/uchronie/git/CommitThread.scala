@@ -32,8 +32,22 @@ trait CommitThread {
             pick(commits.take(index)) ++ (VirtualCommit.Rename(commit, message) :: commits.drop(index + 1))
           Right(CommitThread.fromVirtualCommits(newCommits))
       }
+    case MoveOp(targets, pos) =>
+      val indices = targets.map(commits.indexOf(_))
+      val notFound = indices.indexOf(-1)
+      if (notFound != -1)
+        Left(CommitThread.CommitNotFound(this, op, targets(notFound)))
+      else {
+        val lastTarget = indices.max
+        val picked = pick(commits.take(lastTarget)) ++ commits.drop(lastTarget)
+        val newCommits = picked.take(pos).filterNot(p => targets.exists(t => p derived t)) ++
+          move(targets) ++
+          picked.drop(pos).filterNot(p => targets.exists(t => p derived t))
+        Right(CommitThread.fromVirtualCommits(newCommits))
+      }
     case _ => Right(this)
   }
 
   private def pick(cs: List[VirtualCommit]) = cs map VirtualCommit.Pick
+  private def move(cs: List[VirtualCommit]) = cs map VirtualCommit.Move
 }

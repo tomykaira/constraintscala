@@ -3,7 +3,7 @@ package com.tomykaira.uchronie.git
 import com.tomykaira.uchronie.GitSpecHelper
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
-import com.tomykaira.uchronie.git.VirtualCommit.{Pick, Rename, DummyCommit}
+import com.tomykaira.uchronie.git.VirtualCommit.{Move, Pick, Rename, DummyCommit}
 import org.scalatest.EitherValues._
 
 class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
@@ -40,6 +40,25 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         val after = result.right.value.commits(4)
         assert(after.isInstanceOf[Pick])
         after.asInstanceOf[Pick].previous should equal (commits(4))
+      }
+    }
+    describe("move") {
+      lazy val result = thread.applyOperation(MoveOp(commits.slice(4,7), 0))
+      it("should move 3 commits to top") {
+        val first = result.right.value.commits(0)
+        val third = result.right.value.commits(2)
+        first.asInstanceOf[Move].previous should equal (commits(4))
+        third.asInstanceOf[Move].previous should equal (commits(6))
+      }
+      it("should pick 0 to 3") {
+        val fourth = result.right.value.commits(3)
+        val seventh = result.right.value.commits(6)
+        fourth.asInstanceOf[Pick].previous should equal (commits(0))
+        seventh.asInstanceOf[Pick].previous should equal (commits(3))
+      }
+      it("should keep 7 to 9") {
+        val eighth = result.right.value.commits(7)
+        eighth should equal (commits(7))
       }
     }
   }
