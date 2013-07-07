@@ -1,7 +1,7 @@
 package com.tomykaira.uchronie.git
 
 sealed trait Operation
-case class DeleteOp(commit: VirtualCommit) extends Operation
-case class MoveOp(commits: List[VirtualCommit], pos: Int) extends Operation
-case class RenameOp(commit: VirtualCommit, message: String) extends Operation
-case class SquashOp(commits: List[VirtualCommit], message: Option[String]) extends Operation
+case class DeleteOp(commit: Commit) extends Operation
+case class MoveOp(commits: List[Commit], pos: Int) extends Operation
+case class RenameOp(commit: Commit, message: String) extends Operation
+case class SquashOp(commits: List[Commit], message: Option[String]) extends Operation

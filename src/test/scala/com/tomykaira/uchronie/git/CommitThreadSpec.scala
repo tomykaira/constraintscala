@@ -3,7 +3,7 @@ package com.tomykaira.uchronie.git
 import com.tomykaira.uchronie.GitSpecHelper
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
-import com.tomykaira.uchronie.git.VirtualCommit._
+import com.tomykaira.uchronie.git.Commit._
 import org.scalatest.EitherValues._
 
 class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
@@ -75,16 +75,16 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       lazy val result = thread.applyOperation(SquashOp(commits.slice(4,7), None))
       it("should squash commits there") {
         val fifth = result.right.value.commits(4)
-        fifth.asInstanceOf[VirtualCommit.Squash].previous should equal (commits.slice(4,7))
+        fifth.asInstanceOf[Commit.Squash].previous should equal (commits.slice(4,7))
       }
       it("should set message by concatenating") {
         val fifth = result.right.value.commits(4)
-        fifth.asInstanceOf[VirtualCommit.Squash].message should equal ("Dummy 4\n\nDummy 5\n\nDummy 6")
+        fifth.asInstanceOf[Commit.Squash].message should equal ("Dummy 4\n\nDummy 5\n\nDummy 6")
       }
       it("should set message from Operation") {
         val result = thread.applyOperation(SquashOp(commits.slice(4,7), Some("New Message")))
         val fifth = result.right.value.commits(4)
-        fifth.asInstanceOf[VirtualCommit.Squash].message should equal ("New Message")
+        fifth.asInstanceOf[Commit.Squash].message should equal ("New Message")
       }
       it("should shorten thread length") {
         result.right.value.commits should have length 8

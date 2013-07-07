@@ -3,32 +3,32 @@ package com.tomykaira.uchronie.git
 import org.eclipse.jgit.revwalk.RevCommit
 
 object CommitThread {
-  def fromVirtualCommits(cs: List[VirtualCommit]): CommitThread =
+  def fromVirtualCommits(cs: List[Commit]): CommitThread =
     new CommitThread {
-      val commits: List[VirtualCommit] = cs
+      val commits: List[Commit] = cs
     }
 
   def fromRevCommits(cs: List[RevCommit]): CommitThread =
     new CommitThread {
-      val commits: List[VirtualCommit] = cs.map(Commit.revCommitToRawCommit)
+      val commits: List[Commit] = cs.map(Commit.revCommitToRawCommit)
     }
 
   sealed trait Error {
     val thread: CommitThread
     val operation: Operation
   }
-  case class CommitNotFound(thread: CommitThread, operation: Operation, commit: VirtualCommit) extends Error
+  case class CommitNotFound(thread: CommitThread, operation: Operation, commit: Commit) extends Error
   case class NotSequentialSlice(thread: CommitThread, operation: Operation) extends Error
 }
 
 trait CommitThread {
-  val commits: List[VirtualCommit]
+  val commits: List[Commit]
   type OperationResult = Either[CommitThread.Error, CommitThread]
 
   def applyOperation(op: Operation): OperationResult = op match {
     case RenameOp(target, message) =>
       withTargetIndex(target, op).right.flatMap { index =>
-        result(pick(commits.take(index)) ++ (VirtualCommit.Rename(target, message) :: commits.drop(index + 1)))
+        result(pick(commits.take(index)) ++ (Commit.Rename(target, message) :: commits.drop(index + 1)))
       }
     case DeleteOp(target) =>
       withTargetIndex(target, op).right.flatMap { index =>
@@ -51,13 +51,13 @@ trait CommitThread {
         val firstIndex = commits.indexOf(targets.head)
         val lastIndex = firstIndex + targets.length
         val newMessage = message.getOrElse(targets.reverse.map(_.message.stripLineEnd).mkString("\n\n"))
-        result(pick(commits.take(firstIndex)) ++ (VirtualCommit.Squash(targets, newMessage) :: commits.drop(lastIndex)))
+        result(pick(commits.take(firstIndex)) ++ (Commit.Squash(targets, newMessage) :: commits.drop(lastIndex)))
       } else {
         Left(CommitThread.NotSequentialSlice(this, op))
       }
   }
 
-  private def indicesInList(targets: List[VirtualCommit], op: Operation): Either[CommitThread.Error, List[Int]] = {
+  private def indicesInList(targets: List[Commit], op: Operation): Either[CommitThread.Error, List[Int]] = {
     val indices = targets.map(commits.indexOf(_))
     val notFound = indices.indexOf(-1)
     if (notFound != -1) {
@@ -67,14 +67,14 @@ trait CommitThread {
     }
   }
 
-  private def withTargetIndex(target: VirtualCommit, op: Operation) =
+  private def withTargetIndex(target: Commit, op: Operation) =
     commits.indexOf(target) match {
       case -1 => Left(CommitThread.CommitNotFound(this, op, target))
       case index: Int => Right(index)
     }
 
-  private def result(commits: List[VirtualCommit]) =
+  private def result(commits: List[Commit]) =
     Right(CommitThread.fromVirtualCommits(commits))
 
-  private def pick(cs: List[VirtualCommit]) = cs map VirtualCommit.Pick
+  private def pick(cs: List[Commit]) = cs map Commit.Pick
 }

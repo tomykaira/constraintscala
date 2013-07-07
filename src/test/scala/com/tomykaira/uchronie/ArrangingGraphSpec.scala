@@ -111,7 +111,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       new Fixture {
         val range = graph.selectRange(Seq(2))
         val newCommits = graph.reorder(range, 0).right.value.commits
-        newCommits(0).getParent(0) should equal (newCommits(1).raw)
+        newCommits(0).getParent(0) should equal (newCommits(1).asInstanceOf[Commit.Raw].raw)
       }
     }
     it("should reorder two commits") {
@@ -197,7 +197,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     it("should checkout the parent of specified commit") {
       new Fixture {
         graph.startEdit(commits(2))
-        repository.resolve(Constants.HEAD).get should equal (commits(1).raw)
+        repository.resolve(Constants.HEAD).get should equal (commits(1).getId)
       }
     }
     it("should have files indexed") {

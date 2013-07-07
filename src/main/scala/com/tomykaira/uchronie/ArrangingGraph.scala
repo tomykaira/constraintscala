@@ -2,17 +2,17 @@ package com.tomykaira.uchronie
 
 import org.eclipse.jgit.lib.{Constants, ObjectId}
 import scala.annotation.tailrec
-import com.tomykaira.uchronie.git.{RawCommit, Commit}
+import com.tomykaira.uchronie.git.Commit
 import org.eclipse.jgit.revwalk.RevCommit
 
 object ArrangingGraph {
   def apply(repository: GitRepository, start: ObjectId, commits: List[RevCommit]): ArrangingGraph = {
-    new ArrangingGraph(repository, start, commits.map(Commit.revCommitToRawCommit(_)))
+    new ArrangingGraph(repository, start, commits.map(Commit.revCommitToRawCommit))
   }
 }
 
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val commits: List[Commit]) {
-  private lazy val startCommit: Commit = RawCommit(repository.toCommit(start))
+  private lazy val startCommit: Commit = repository.toCommit(start)
   private lazy val last = commits.headOption.getOrElse(startCommit)
 
   rollback()
@@ -121,7 +121,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
   // commits should be ordered from old to new
   private def applyCommits(first: Commit, commits: List[Commit]): Either[String, Commit] = {
     commits.foldLeft[Either[String, Commit]](Right(first))(
-      (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c).right.map[Commit](rev => RawCommit(rev))))
+      (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c).right.map[Commit](rev => rev)))
   }
 
   private def finishUpdate(newLast: Either[String, Commit]): Either[String, ArrangingGraph] = {

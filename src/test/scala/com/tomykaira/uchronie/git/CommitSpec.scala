@@ -2,7 +2,7 @@ package com.tomykaira.uchronie.git
 
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.FunSpec
-import com.tomykaira.uchronie.git.VirtualCommit._
+import com.tomykaira.uchronie.git.Commit._
 
 class CommitSpec extends FunSpec with ShouldMatchers {
   describe("simplify") {
@@ -28,7 +28,7 @@ class CommitSpec extends FunSpec with ShouldMatchers {
     }
     describe("Squash") {
       it("should simplify each commit") {
-        VirtualCommit.Squash(List(Pick(Pick(core))), "Foo").simplify should equal (VirtualCommit.Squash(List(Pick(core)), "Foo"))
+        Commit.Squash(List(Pick(Pick(core))), "Foo").simplify should equal (Commit.Squash(List(Pick(core)), "Foo"))
       }
     }
   }

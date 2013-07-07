@@ -2,7 +2,6 @@ package com.tomykaira.uchronie
 
 import java.io.{PrintWriter, File}
 import org.eclipse.jgit.api.Git
-import org.eclipse.jgit.revwalk.RevCommit
 import com.tomykaira.uchronie.git.Commit
 
 trait GitSpecHelper {
@@ -33,16 +32,16 @@ trait GitSpecHelper {
 
   def git: Git = Git.open(dotGit)
 
-  def createCommit(path: String, content: String, message: String): Commit = {
+  def createCommit(path: String, content: String, message: String): Commit.Raw = {
     addFile(path, content)
     doCommit(message)
   }
 
-  def doCommit(message: String): Commit = {
+  def doCommit(message: String): Commit.Raw = {
     val commit = git.commit().setAll(true).setMessage(message).call()
     if (commit == null)
       throw new GitSpecHelperException("commit is null")
-    commit
+    Commit.Raw(commit)
   }
 
   def addFile(path: String, content: String) {
@@ -63,7 +62,7 @@ trait GitSpecHelper {
     git.add().addFilepattern(path).call()
   }
 
-  def createCommit(message: String): Commit =
+  def createCommit(message: String): Commit.Raw =
     createCommit("testFile", message, message)
 
   def firstCommit =

@@ -4,6 +4,7 @@ import org.scalatest.{BeforeAndAfter, FunSpec}
 import org.scalatest.matchers.ShouldMatchers
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.lib.Constants
+import com.tomykaira.uchronie.git.Commit
 
 class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -19,7 +20,7 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
     it("should respond 1 commit with two IDs in sequence") {
       val commit1 = firstCommit
       val commit2 = secondCommit
-      repository.listCommits(commit1.getId, commit2.getId).commits should contain (commit2)
+      repository.listCommits(commit1.getId, commit2.getId).commits should contain (commit2: Commit)
     }
 
     it("should respond 3 commits in reversed order") {
