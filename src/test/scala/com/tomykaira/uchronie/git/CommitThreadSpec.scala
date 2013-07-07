@@ -102,5 +102,23 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         result should be ('left)
       }
     }
+    describe("delete") {
+      lazy val result = thread.applyOperation(DeleteOp(commits(5)))
+      it("should shorten thread length") {
+        result.right.value.commits should have length 9
+      }
+      it("should pick 0 to 4") {
+        val fifth = result.right.value.commits(4)
+        fifth.asInstanceOf[Pick].previous should equal (commits(4))
+      }
+      it("should keep 6 to 9") {
+        val sixth = result.right.value.commits(5)
+        sixth should equal (commits(6))
+      }
+      it("should reject if commit is not included") {
+        val result = thread.applyOperation(DeleteOp(notFound))
+        result should be ('left)
+      }
+    }
   }
 }

@@ -25,12 +25,12 @@ trait CommitThread {
   val commits: List[VirtualCommit]
 
   def applyOperation(op: Operation): Either[CommitThread.Error, CommitThread] = op match {
-    case RenameOp(commit, message) =>
-      commits.indexOf(commit) match {
-        case -1 => Left(CommitThread.CommitNotFound(this, op, commit))
+    case RenameOp(target, message) =>
+      commits.indexOf(target) match {
+        case -1 => Left(CommitThread.CommitNotFound(this, op, target))
         case index: Int =>
-          val newCommits: List[VirtualCommit] =
-            pick(commits.take(index)) ++ (VirtualCommit.Rename(commit, message) :: commits.drop(index + 1))
+          val newCommits =
+            pick(commits.take(index)) ++ (VirtualCommit.Rename(target, message) :: commits.drop(index + 1))
           Right(CommitThread.fromVirtualCommits(newCommits))
       }
     case MoveOp(targets, pos) =>
@@ -58,7 +58,13 @@ trait CommitThread {
       } else {
         Left(CommitThread.NotSequentialSlice(this, op))
       }
-    case _ => Right(this)
+    case DeleteOp(target) =>
+      commits.indexOf(target) match {
+        case -1 => Left(CommitThread.CommitNotFound(this, op, target))
+        case index: Int =>
+          val newCommits = pick(commits.take(index)) ++ commits.drop(index + 1)
+          Right(CommitThread.fromVirtualCommits(newCommits))
+      }
   }
 
   private def pick(cs: List[VirtualCommit]) = cs map VirtualCommit.Pick
