@@ -58,15 +58,3 @@ object VirtualCommit {
 case class RawCommit(raw: RevCommit) extends Commit {
   def derived(commit: VirtualCommit): Boolean = this == commit
 }
-case class Picked(raw: RevCommit, previous: Commit) extends Commit {
-  def derived(commit: VirtualCommit) = this == commit || (previous derived commit)
-}
-case class Renamed(raw: RevCommit, previous: Commit) extends Commit {
-  def derived(commit: VirtualCommit) = this == commit || (previous derived commit)
-}
-case class Moved(raw: RevCommit, previous: Commit) extends Commit {
-  def derived(commit: VirtualCommit) = this == commit || (previous derived commit)
-}
-case class Squashed(raw: RevCommit, previous: List[Commit]) extends Commit {
-  def derived(commit: VirtualCommit) = this == commit || previous.exists(_ derived commit)
-}
