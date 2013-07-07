@@ -11,9 +11,9 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
     initRepo()
   }
 
-  def vir(id: Int) = DummyCommit(id)
   lazy val commits = (1 to 10).map(DummyCommit).reverse.toList
   lazy val thread = CommitThread.fromVirtualCommits(commits)
+  lazy val notFound = DummyCommit(-1)
 
   describe("Initialize CommitThread from dummy commits") {
     it("should return Thread with commits") {
@@ -41,6 +41,11 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         assert(after.isInstanceOf[Pick])
         after.asInstanceOf[Pick].previous should equal (commits(4))
       }
+      it("should fail if commit does not found") {
+        val result = thread.applyOperation(RenameOp(notFound, "New Message"))
+        result should be ('left)
+        result.left.value.asInstanceOf[CommitThread.CommitNotFound].commit should equal (notFound)
+      }
     }
     describe("move") {
       lazy val result = thread.applyOperation(MoveOp(commits.slice(4,7), 0))
@@ -59,6 +64,11 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       it("should keep 7 to 9") {
         val eighth = result.right.value.commits(7)
         eighth should equal (commits(7))
+      }
+      it("should fail if one of commits does not found") {
+        val result = thread.applyOperation(MoveOp(notFound :: commits.slice(4,7), 0))
+        result should be ('left)
+        result.left.value.asInstanceOf[CommitThread.CommitNotFound].commit should equal (notFound)
       }
     }
   }
