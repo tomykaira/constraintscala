@@ -91,8 +91,11 @@ class GitRepository(rootPath: File) {
     git.commit().setMessage(message).call()
   }
 
-  def isClean: Boolean =
-    git.status.call.isClean
+  def isClean: Boolean = {
+    val result = git.status.call
+    result.getAdded.isEmpty && result.getChanged.isEmpty && result.getRemoved.isEmpty && result.getMissing.isEmpty &&
+      result.getModified.isEmpty && result.getConflicting.isEmpty
+  }
 
   def formatDiff(entry: DiffEntry): String = {
     diffFormatter.format(entry)
