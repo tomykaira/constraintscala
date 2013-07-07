@@ -41,18 +41,6 @@ object VirtualCommit {
       }
   }
 
-  case class Move(previous: VirtualCommit) extends VirtualCommit {
-    def derived(commit: VirtualCommit) = this == commit || (previous derived commit)
-
-    val message: String = previous.message
-
-    override def simplify: VirtualCommit =
-      previous.simplify match {
-        case Pick(c) => Move(c)
-        case it => Move(it)
-      }
-  }
-
   case class Squash(previous: List[VirtualCommit], message: String) extends VirtualCommit {
     def derived(commit: VirtualCommit) = this == commit || previous.exists(_ derived commit)
 

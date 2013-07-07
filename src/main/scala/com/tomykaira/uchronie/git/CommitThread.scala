@@ -41,7 +41,7 @@ trait CommitThread {
         val lastTarget = indices.max
         val picked = pick(commits.take(lastTarget)) ++ commits.drop(lastTarget)
         result(picked.take(pos).filterNot(p => targets.exists(t => p derived t)) ++
-          move(targets) ++
+          pick(targets) ++
           picked.drop(pos).filterNot(p => targets.exists(t => p derived t)))
       }
     case SquashOp(targets, message) =>
@@ -77,5 +77,4 @@ trait CommitThread {
     Right(CommitThread.fromVirtualCommits(commits))
 
   private def pick(cs: List[VirtualCommit]) = cs map VirtualCommit.Pick
-  private def move(cs: List[VirtualCommit]) = cs map VirtualCommit.Move
 }
