@@ -71,5 +71,36 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         result.left.value.asInstanceOf[CommitThread.CommitNotFound].commit should equal (notFound)
       }
     }
+    describe("squash") {
+      lazy val result = thread.applyOperation(SquashOp(commits.slice(4,7), None))
+      it("should squash commits there") {
+        val fifth = result.right.value.commits(4)
+        fifth.asInstanceOf[VirtualCommit.Squash].previous should equal (commits.slice(4,7))
+      }
+      it("should set message by concatenating") {
+        val fifth = result.right.value.commits(4)
+        fifth.asInstanceOf[VirtualCommit.Squash].message should equal ("Dummy 4\n\nDummy 5\n\nDummy 6")
+      }
+      it("should set message from Operation") {
+        val result = thread.applyOperation(SquashOp(commits.slice(4,7), Some("New Message")))
+        val fifth = result.right.value.commits(4)
+        fifth.asInstanceOf[VirtualCommit.Squash].message should equal ("New Message")
+      }
+      it("should shorten thread length") {
+        result.right.value.commits should have length 8
+      }
+      it("should pick 0 to 3") {
+        val first = result.right.value.commits(0)
+        first.asInstanceOf[Pick].previous should equal (commits(0))
+      }
+      it("should keep 7 to 9") {
+        val eighth = result.right.value.commits(5)
+        eighth should equal (commits(7))
+      }
+      it("should reject if commits are not sequential") {
+        val result = thread.applyOperation(SquashOp(commits(2) :: commits.slice(4,7), Some("New Message")))
+        result should be ('left)
+      }
+    }
   }
 }

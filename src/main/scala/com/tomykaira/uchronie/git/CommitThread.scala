@@ -18,6 +18,7 @@ object CommitThread {
     val operation: Operation
   }
   case class CommitNotFound(thread: CommitThread, operation: Operation, commit: VirtualCommit) extends Error
+  case class NotSequentialSlice(thread: CommitThread, operation: Operation) extends Error
 }
 
 trait CommitThread {
@@ -44,6 +45,18 @@ trait CommitThread {
           move(targets) ++
           picked.drop(pos).filterNot(p => targets.exists(t => p derived t))
         Right(CommitThread.fromVirtualCommits(newCommits))
+      }
+    case SquashOp(targets, message) =>
+      if (targets.isEmpty) {
+        Right(this)
+      } else if (commits.containsSlice(targets)) {
+        val firstIndex = commits.indexOf(targets.head)
+        val lastIndex = firstIndex + targets.length
+        val newMessage = message.getOrElse(targets.reverse.map(_.message.stripLineEnd).mkString("\n\n"))
+        val newCommits = pick(commits.take(firstIndex)) ++ (VirtualCommit.Squash(targets, newMessage) :: commits.drop(lastIndex))
+        Right(CommitThread.fromVirtualCommits(newCommits))
+      } else {
+        Left(CommitThread.NotSequentialSlice(this, op))
       }
     case _ => Right(this)
   }
