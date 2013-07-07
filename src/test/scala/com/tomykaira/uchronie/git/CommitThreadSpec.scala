@@ -4,6 +4,7 @@ import com.tomykaira.uchronie.GitSpecHelper
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
 import com.tomykaira.uchronie.git.Commit._
+import com.tomykaira.uchronie.git.Operation._
 import org.scalatest.EitherValues._
 
 class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {

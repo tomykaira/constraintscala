@@ -26,15 +26,15 @@ trait CommitThread {
   type OperationResult = Either[CommitThread.Error, CommitThread]
 
   def applyOperation(op: Operation): OperationResult = op match {
-    case RenameOp(target, message) =>
+    case Operation.RenameOp(target, message) =>
       withTargetIndex(target, op).right.flatMap { index =>
         result(pick(commits.take(index)) ++ (Commit.Rename(target, message) :: commits.drop(index + 1)))
       }
-    case DeleteOp(target) =>
+    case Operation.DeleteOp(target) =>
       withTargetIndex(target, op).right.flatMap { index =>
         result(pick(commits.take(index)) ++ commits.drop(index + 1))
       }
-    case MoveOp(targets, pos) =>
+    case Operation.MoveOp(targets, pos) =>
       if (targets.isEmpty)
         return Right(this)
       indicesInList(targets, op).right.flatMap { indices =>
@@ -44,7 +44,7 @@ trait CommitThread {
           pick(targets) ++
           picked.drop(pos).filterNot(p => targets.exists(t => p derived t)))
       }
-    case SquashOp(targets, message) =>
+    case Operation.SquashOp(targets, message) =>
       if (targets.isEmpty) {
         Right(this)
       } else if (commits.containsSlice(targets)) {
