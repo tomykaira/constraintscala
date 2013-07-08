@@ -87,6 +87,11 @@ object Main extends SimpleSwingApplication {
         initial = 0
       )
 
+    editFSM.onChange {
+      case _: Rebasing => processingFSM.changeStateTo(Working())
+      case _ => processingFSM.changeStateTo(Stopped())
+    }
+
     @tailrec
     def pickInteractively(orphans: GraphRange) {
       editFSM.changeStateTo(Rebasing(orphans))
@@ -101,6 +106,7 @@ object Main extends SimpleSwingApplication {
               editFSM.changeStateTo(NotEditing())
           }
         case Right(newGraph) =>
+          editFSM.changeState { case _: Rebasing => NotEditing() }
           graphConstraint.update(newGraph)
       }
     }
