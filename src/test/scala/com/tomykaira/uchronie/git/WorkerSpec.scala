@@ -19,7 +19,7 @@ class WorkerSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
   }
 
   trait Utilities {
-    val commits: List[Commit]
+    val commits: List[Commit.Raw]
     lazy val graph = new ArrangingGraph(repository, commits.head, commits.last)
     lazy val first = commits(0)
     lazy val second = commits(1)

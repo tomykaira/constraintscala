@@ -1,6 +1,7 @@
 package com.tomykaira.uchronie.git
 
 import org.eclipse.jgit.revwalk.RevCommit
+import org.eclipse.jgit.lib.ObjectId
 import scala.language.implicitConversions
 import com.tomykaira.uchronie.{CherryPickFailure, GitRepository}
 import scalaz.NonEmptyList
@@ -8,11 +9,14 @@ import scalaz.NonEmptyList
 sealed trait Commit {
   def derived(commit: Commit): Boolean
   val message: String
+  val shortId: String
+  val id: ObjectId
   def simplify: Commit
 }
 object Commit {
-  implicit def commitToRevCommit(commit: Commit): RevCommit = commit.asInstanceOf[Raw].raw
   implicit def revCommitToRawCommit(rev: RevCommit): Commit = Raw(rev)
+
+  implicit def rawCommitToRevCommit(raw: Commit.Raw): RevCommit = raw.raw
 
   class NotSimplifiedException extends RuntimeException("Defeat: maybe simplify call is forgot")
 
@@ -27,6 +31,10 @@ object Commit {
     type PerformanceResult = Either[CherryPickFailure, Raw]
 
     def perform(repository: GitRepository): PerformanceResult
+
+    val id = ObjectId.zeroId()
+
+    val shortId = id.abbreviate(7).name()
 
     def rawPreviousCommit(commit: Commit): Raw = commit match {
       case r: Raw => r
@@ -82,7 +90,7 @@ object Commit {
         _ <- reversed.tail.foldRight[PerformanceResult](Right(newHead)) { (commit, prev) =>
           prev.right.flatMap(_ => pickPrevious(commit, repository))
         }.right
-        _ <- Right(repository.resetSoft(newHead.getParent(0))).right
+        _ <- Right(repository.resetSoft(newHead.raw.getParent(0))).right
         lastCommit <- Right(repository.commit(message)).right
       } yield Raw(lastCommit)
     }
@@ -104,10 +112,18 @@ object Commit {
 
   case class Raw(raw: RevCommit) extends Concrete {
     val message = raw.getFullMessage
+
+    val id = raw.getId
+
+    val shortId = id.abbreviate(7).name()
   }
 
   // for testing
-  case class DummyCommit(id: Int) extends Concrete {
-    val message = s"Dummy $id"
+  case class DummyCommit(i: Int) extends Concrete {
+    val message = s"Dummy $i"
+
+    val id = ObjectId.fromRaw(Array(i, 0, 0, 0, 0))
+
+    val shortId = id.abbreviate(7).name()
   }
 }

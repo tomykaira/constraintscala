@@ -41,18 +41,19 @@ object Main extends SimpleSwingApplication {
     }
 
     def dispatch(c: Command) {
-      implicit val timeout = Timeout(60 seconds)
-      processingFSM.changeStateTo(Working())
-      val future = ask(actor, c).mapTo[ArrangingGraph]
-      future.onComplete {
-        case_ =>
-          processingFSM.changeStateTo(Stopped())
-      }
-      future.onSuccess {
-        case g => graphConstraint.update(g)
-      }
-      future.onFailure {
-        case err => Dialog.showMessage(title = "Error", message = err.getMessage)
+      (c match {
+        case UpdateComment(g, target, message) =>
+          g.updateComment(target, message)
+        case Reorder(g, range, pos) =>
+          g.reorder(range, pos)
+        case Squash(g, range, message) =>
+          g.squash(range, message)
+        case Delete(g, range) =>
+          g.delete(range)
+      }) match {
+        case Right(_) => graphConstraint.update(graphConstraint.get) // FIXME: fake update
+        case Left(err) =>
+          Dialog.showMessage(title = "Error", message = err)
       }
     }
 
@@ -133,7 +134,7 @@ object Main extends SimpleSwingApplication {
 
     val changedFiles = new FileList(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        range.first.map(c => repository.diff(c)).getOrElse(Nil)
+        range.first.flatMap(c => new CommitDecorator(c).diff(repository)).getOrElse(Nil)
       case _ => Nil
     }))
     val comment = new CommentArea(commitsTable.state.convert({
@@ -197,7 +198,10 @@ object Main extends SimpleSwingApplication {
             case e: ButtonClicked =>
               commitsTable.state.get match {
                 case commitsTable.RowsSelected(range) =>
-                  range.first.foreach(commit => editFSM.changeState(NotEditing(), EditCommit(commit)))
+                  range.first.foreach(commit => commit match {
+                    case Commit.Raw(r) => editFSM.changeState(NotEditing(), EditCommit(r))
+                    case _ => sys.error("Unsupported operation")
+                  })
                 case _ =>
               }
           }

@@ -60,10 +60,11 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
     }.left.map(_.toString)
   }
 
+  // TODO: accept only Raw
   def startEdit(commit: Commit): GraphRange = {
     val orphans = commits.takeWhile(_ != commit)
-    repository.resetHard(commit)
-    repository.resetSoft(parent(commit))
+    repository.resetHard(commit.asInstanceOf[Commit.Raw].raw)
+    repository.resetSoft(parent(commit).asInstanceOf[Commit.Raw].raw)
     new GraphRange(this, orphans)
   }
 
@@ -74,7 +75,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
     def loop(commits: List[Commit]): Either[GraphRange, ArrangingGraph] = commits match {
       case Nil => Right(new ArrangingGraph(repository, start, repository.resolve(Constants.HEAD).get))
       case x :: xs =>
-        repository.cherryPick(x) match {
+        repository.cherryPick(x.asInstanceOf[Commit.Raw].raw) match {
           case Left(err) => Left(new GraphRange(this, xs.reverse))
           case Right(_) => loop(xs)
         }
@@ -119,6 +120,6 @@ class GraphRange(val graph: ArrangingGraph, val commits: List[Commit]) {
   }
 
   def squashMessage: String= {
-    commits.reverse.map(_.getFullMessage.stripLineEnd).mkString("\n\n")
+    commits.reverse.map(_.message.stripLineEnd).mkString("\n\n")
   }
 }

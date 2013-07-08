@@ -54,7 +54,7 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
       }
       // FIXME
       arrangingGraph.currentThread.commits.foreach(commit =>
-        model addRow new CommitDecorator(commit).tableRow(arrangingGraph.repository))
+        model addRow new CommitDecorator(commit).tableRow)
       oldSelected.foreach(row =>
         if (row < peer.getRowCount)
           peer.setRowSelectionInterval(row, row))
