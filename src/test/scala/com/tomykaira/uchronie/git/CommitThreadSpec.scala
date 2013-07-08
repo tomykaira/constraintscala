@@ -72,7 +72,7 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       lazy val result = thread.applyOperation(SquashOp(commits.slice(4,7), None))
       it("should squash commits there") {
         val fifth = result.right.value.commits(4)
-        fifth.asInstanceOf[Commit.Squash].previous should equal (commits.slice(4,7))
+        fifth.asInstanceOf[Commit.Squash].previous.list should equal (commits.slice(4,7))
       }
       it("should set message by concatenating") {
         val fifth = result.right.value.commits(4)

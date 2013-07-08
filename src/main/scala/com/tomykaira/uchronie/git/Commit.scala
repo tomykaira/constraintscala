@@ -3,6 +3,7 @@ package com.tomykaira.uchronie.git
 import org.eclipse.jgit.revwalk.RevCommit
 import scala.language.implicitConversions
 import com.tomykaira.uchronie.GitRepository
+import scalaz.NonEmptyList
 
 sealed trait Commit {
   def derived(commit: Commit): Boolean
@@ -80,33 +81,31 @@ object Commit {
       }
   }
 
-  case class Squash(previous: List[Commit], message: String) extends Operational {
-    def perform(repository: GitRepository) =
-      previous.reverse match {
-        case Nil => Left(EmptySquash())
-        case head :: rest =>
-          for {
-            newHead <- pickPrevious(head, repository).right
-            _ <- rest.foldRight[PerformanceResult](Right(newHead)) { (commit, prev) =>
-              prev.right.flatMap(_ => pickPrevious(commit, repository))
-            }.right
-            _ <- Right(repository.resetSoft(newHead.getParent(0))).right
-            lastCommit <- Right(repository.commit(message)).right
-          } yield Raw(lastCommit)
-      }
+  case class Squash(previous: NonEmptyList[Commit], message: String) extends Operational {
+    def perform(repository: GitRepository) = {
+      val reversed = previous.reverse
+      for {
+        newHead <- pickPrevious(reversed.head, repository).right
+        _ <- reversed.tail.foldRight[PerformanceResult](Right(newHead)) { (commit, prev) =>
+          prev.right.flatMap(_ => pickPrevious(commit, repository))
+        }.right
+        _ <- Right(repository.resetSoft(newHead.getParent(0))).right
+        lastCommit <- Right(repository.commit(message)).right
+      } yield Raw(lastCommit)
+    }
 
-    def derived(commit: Commit) = this == commit || previous.exists(_ derived commit)
+    def derived(commit: Commit) = this == commit || previous.list.exists(_ derived commit)
 
     def simplify = {
-      val news = previous.foldRight[List[Commit]](List()) { (current, list) =>
+      val news = previous.list.foldRight[List[Commit]](List()) { (current, list) =>
         current.simplify match {
           case Pick(c) => c :: list
           case Rename(c, _) => c :: list
-          case Squash(cs, _) => cs ++ list
+          case Squash(cs, _) => cs.list ++ list
           case it: Concrete => it :: list
         }
       }
-      Squash(news, message)
+      Squash(NonEmptyList.nel(news.head, news.tail), message)
     }
   }
 

@@ -3,6 +3,7 @@ package com.tomykaira.uchronie.git
 import org.eclipse.jgit.revwalk.RevCommit
 import scala.collection.mutable.ListBuffer
 import com.tomykaira.uchronie.GitRepository
+import scalaz.NonEmptyList
 
 object CommitThread {
   def fromCommits(cs: List[Commit]): CommitThread =
@@ -47,15 +48,18 @@ trait CommitThread {
           picked.drop(pos).filterNot(p => targets.exists(t => p derived t)))
       }
     case Operation.SquashOp(targets, message) =>
-      if (targets.isEmpty) {
-        Right(this)
-      } else if (commits.containsSlice(targets)) {
-        val firstIndex = commits.indexOf(targets.head)
-        val lastIndex = firstIndex + targets.length
-        val newMessage = message.getOrElse(targets.reverse.map(_.message.stripLineEnd).mkString("\n\n"))
-        result(pick(commits.take(firstIndex)) ++ (Commit.Squash(targets, newMessage) :: commits.drop(lastIndex)))
-      } else {
-        Left(CommitThread.NotSequentialSlice(this, op))
+      targets match {
+        case Nil => Right(this)
+        case head :: tail =>
+          if (commits.containsSlice(targets)) {
+            val firstIndex = commits.indexOf(targets.head)
+            val lastIndex = firstIndex + targets.length
+            val newMessage = message.getOrElse(targets.reverse.map(_.message.stripLineEnd).mkString("\n\n"))
+            result(pick(commits.take(firstIndex)) ++
+              (Commit.Squash(NonEmptyList.nel(head, tail), newMessage) :: commits.drop(lastIndex)))
+          } else {
+            Left(CommitThread.NotSequentialSlice(this, op))
+          }
       }
   }
 

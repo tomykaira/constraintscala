@@ -5,13 +5,21 @@ import org.scalatest.{BeforeAndAfter, FunSpec}
 import com.tomykaira.uchronie.git.Commit._
 import com.tomykaira.uchronie.GitSpecHelper
 import org.scalatest.EitherValues._
+import scalaz.NonEmptyList
 
 class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
+
+  def createSquash(cs: List[Commit], message: String): Commit.Squash =
+    Commit.Squash(NonEmptyList.nel(cs.head, cs.tail), message)
+
+  def createSquash(ids: Range, message: String): Commit.Squash =
+    createSquash(ids.toList.map(DummyCommit), message)
+
   describe("simplify") {
     val core = DummyCommit(3)
     lazy val pick = Pick(DummyCommit(5))
     lazy val rename = Commit.Rename(DummyCommit(4), "Rename")
-    lazy val squash = Commit.Squash((1 to 3).map(DummyCommit).toList, "Squash")
+    lazy val squash = createSquash(1 to 3, "Squash")
     describe("Pick") {
       it("should simplify enclosing Pick") {
         Pick(pick).simplify should equal (pick)
@@ -39,15 +47,15 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
     }
     describe("Squash") {
       it("should omit Pick") {
-        Commit.Squash(List(Pick(Pick(core))), "Foo").simplify should equal (Commit.Squash(List(core), "Foo"))
+        createSquash(List(Pick(Pick(core))), "Foo").simplify should equal (createSquash(List(core), "Foo"))
       }
       it("should ignore Rename") {
-        Commit.Squash(List(Rename(core, "A"), DummyCommit(2)), "Foo").simplify.
-          should(equal (Commit.Squash(List(core, DummyCommit(2)), "Foo")))
+        createSquash(List(Rename(core, "A"), DummyCommit(2)), "Foo").simplify.
+          should(equal (createSquash(List(core, DummyCommit(2)), "Foo")))
       }
       it("should expand internal squash") {
-        Commit.Squash(List(DummyCommit(9), squash, DummyCommit(8)), "Foo").simplify.
-          should(equal (Commit.Squash(List(9, 1, 2, 3, 8).map(DummyCommit), "Foo")))
+        createSquash(List(DummyCommit(9), squash, DummyCommit(8)), "Foo").simplify.
+          should(equal (createSquash(List(9, 1, 2, 3, 8).map(DummyCommit), "Foo")))
       }
     }
   }
@@ -99,7 +107,7 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
       it("should squash commits") {
         new Fixture {
           repository.resetHard(commits(0))
-          val commit = Commit.Squash(commits.slice(1,4).reverse, "Foo").perform(repository).right.value
+          val commit = createSquash(commits.slice(1,4).reverse, "Foo").perform(repository).right.value
           commit.message should equal ("Foo")
           commit.raw.getParent(0) should equal (commits(0).getId)
         }
@@ -107,16 +115,9 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
       it("should squash not sequential commits") {
         new Fixture {
           repository.resetHard(commits(0))
-          val commit = Commit.Squash(List(commits(3), commits(1)), "Foo").perform(repository).right.value
+          val commit = createSquash(List(commits(3), commits(1)), "Foo").perform(repository).right.value
           commit.message should equal ("Foo")
           commit.raw.getParent(0) should equal (commits(0).getId)
-        }
-      }
-      it("should return error if commits is empty") {
-        new Fixture {
-          repository.resetHard(commits(0))
-          val result = Commit.Squash(List(), "Foo").perform(repository)
-          result should equal (Left(Commit.EmptySquash()))
         }
       }
     }
