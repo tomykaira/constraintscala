@@ -1,9 +1,11 @@
 package com.tomykaira.uchronie.git
 
 import org.eclipse.jgit.revwalk.RevCommit
+import scala.collection.mutable.ListBuffer
+import com.tomykaira.uchronie.GitRepository
 
 object CommitThread {
-  def fromVirtualCommits(cs: List[Commit]): CommitThread =
+  def fromCommits(cs: List[Commit]): CommitThread =
     new CommitThread {
       val commits: List[Commit] = cs
     }
@@ -76,7 +78,25 @@ trait CommitThread {
     }
 
   private def result(commits: List[Commit]) =
-    Right(CommitThread.fromVirtualCommits(commits.map(_.simplify)))
+    Right(CommitThread.fromCommits(commits.map(_.simplify)))
 
   private def pick(cs: List[Commit]) = cs map Commit.Pick
+
+  /**
+   * The caller must reset to the start commit of this thread before calling
+   * @param  repository Current processing git repository
+   * @return Error from OperationCommit.perform on failure, new CommitThread
+   *         with Raw commits on success
+   */
+  def perform(repository: GitRepository): Either[Commit.Error, CommitThread] = {
+    val newCommits = commits.foldRight[Either[Commit.Error, List[Commit]]](Right(List()))((current, news) =>
+      current match {
+        case commit: Commit.Operational =>
+          news.right.flatMap(list => commit.perform(repository).right.map(_ :: list))
+        case concrete: Commit.Concrete =>
+          news.right.map(concrete :: _)
+      }
+    )
+    newCommits.right.map(CommitThread.fromCommits)
+  }
 }

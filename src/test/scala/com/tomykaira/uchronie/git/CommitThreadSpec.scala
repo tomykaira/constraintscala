@@ -8,12 +8,8 @@ import com.tomykaira.uchronie.git.Operation._
 import org.scalatest.EitherValues._
 
 class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
-  before {
-    initRepo()
-  }
-
   lazy val commits = (1 to 10).map(DummyCommit).reverse.toList
-  lazy val thread = CommitThread.fromVirtualCommits(commits)
+  lazy val thread = CommitThread.fromCommits(commits)
   lazy val notFound = DummyCommit(-1)
 
   describe("Initialize CommitThread from dummy commits") {
@@ -149,6 +145,26 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       val result1 = thread.applyOperation(RenameOp(commits(5), "New Message")).right.value
       val result2 = result1.applyOperation(SquashOp(result1.commits.slice(4,7), Some("Squash Message"))).right.value
       assert(!result2.isSimple)
+    }
+  }
+
+  describe("perform") {
+    before {
+      initRepo()
+    }
+
+    it("should perform operations") {
+      val commits = (1 to 10).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
+      repository.resetHard(commits(9))
+      val thread = CommitThread.fromCommits(commits.dropRight(1))
+      val result = for {
+        t <- thread.applyOperation(RenameOp(commits(5), "New")).right        // 10 9 8 7 6 New 4 3 2
+        t <- t.applyOperation(MoveOp(t.commits.slice(5,9), 0)).right         // New 4 3 2 10 9 8 7 6
+        t <- t.applyOperation(DeleteOp(t.commits(2))).right                  // New 4 2 10 9 8 7 6
+        t <- t.applyOperation(SquashOp(t.commits.slice(1,4), None)).right    // New 4-2-10 9 8 7 6
+        r <- t.perform(repository).right
+      } yield r
+      result.right.value.commits.map(_.message) should equal (List("New", "10\n\n2\n\n4", "9", "8", "7", "6"))
     }
   }
 }
