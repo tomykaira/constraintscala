@@ -9,32 +9,45 @@ import org.scalatest.EitherValues._
 class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   describe("simplify") {
     val core = DummyCommit(3)
+    lazy val pick = Pick(DummyCommit(5))
+    lazy val rename = Commit.Rename(DummyCommit(4), "Rename")
+    lazy val squash = Commit.Squash((1 to 3).map(DummyCommit).toList, "Squash")
     describe("Pick") {
       it("should simplify enclosing Pick") {
-        Pick(Pick(core)).simplify should equal (Pick(core))
+        Pick(pick).simplify should equal (pick)
       }
       it("should simplify two enclosing Pick") {
-        Pick(Pick(Pick(core))).simplify should equal (Pick(core))
+        Pick(Pick(pick)).simplify should equal (pick)
       }
       it("should simplify Rename") {
-        Pick(Rename(core, "A")).simplify should equal (Rename(core, "A"))
+        Pick(rename).simplify should equal (rename)
+      }
+      it("should simplify Squash") {
+        Pick(squash).simplify should equal (squash)
       }
     }
     describe("Rename") {
-      it("should simplify sequential Rename") {
-        Rename(Rename(core, "A"), "B").simplify should equal (Rename(core, "B"))
-      }
       it("should omit Pick") {
         Rename(Pick(Pick(core)), "B").simplify should equal (Rename(core, "B"))
       }
+      it("should simplify sequential Rename") {
+        Rename(rename, "B").simplify should equal (rename.copy(message = "B"))
+      }
+      it("should simplify squash -> rename to one squash") {
+        Rename(squash, "B").simplify should equal (squash.copy(message = "B"))
+      }
     }
     describe("Squash") {
-      it("should simplify Pick") {
+      it("should omit Pick") {
         Commit.Squash(List(Pick(Pick(core))), "Foo").simplify should equal (Commit.Squash(List(core), "Foo"))
       }
-      it("should not simplify Rename") {
-        val original = Commit.Squash(List(Rename(core, "A")), "Foo")
-        original.simplify should equal (original)
+      it("should ignore Rename") {
+        Commit.Squash(List(Rename(core, "A"), DummyCommit(2)), "Foo").simplify.
+          should(equal (Commit.Squash(List(core, DummyCommit(2)), "Foo")))
+      }
+      it("should expand internal squash") {
+        Commit.Squash(List(DummyCommit(9), squash, DummyCommit(8)), "Foo").simplify.
+          should(equal (Commit.Squash(List(9, 1, 2, 3, 8).map(DummyCommit), "Foo")))
       }
     }
   }

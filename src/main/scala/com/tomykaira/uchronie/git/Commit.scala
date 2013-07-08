@@ -8,8 +8,6 @@ sealed trait Commit {
   def derived(commit: Commit): Boolean
   val message: String
   def simplify: Commit
-  def isSimple: Boolean
-  def isRaw: Boolean
 }
 object Commit {
   implicit def commitToRevCommit(commit: Commit): RevCommit = commit.asInstanceOf[Raw].raw
@@ -24,13 +22,9 @@ object Commit {
   sealed trait Concrete extends Commit {
     def derived(commit: Commit): Boolean = this == commit
     def simplify: Commit = this
-    def isSimple: Boolean = true
-    def isRaw: Boolean = true
   }
 
   sealed trait Operational extends Commit {
-    def isRaw: Boolean = false
-
     type PerformanceResult = Either[Error, Raw]
 
     def perform(repository: GitRepository): PerformanceResult
@@ -58,11 +52,9 @@ object Commit {
 
     def simplify =
       previous.simplify match {
-        case it @ (Pick(_) | Rename(_,_)) => it
-        case it => Pick(it)
+        case it: Operational => it
+        case it: Concrete => Pick(it)
       }
-
-    def isSimple = previous.isRaw
   }
 
   case class Rename(previous: Commit, message: String) extends Operational {
@@ -79,10 +71,9 @@ object Commit {
       previous.simplify match {
         case Pick(c) => Rename(c, message)
         case Rename(c, _) => Rename(c, message)
-        case it => Rename(it, message)
+        case Squash(cs, _) => Squash(cs, message)
+        case it: Concrete => Rename(it, message)
       }
-
-    def isSimple = previous.isRaw
   }
 
   case class Squash(previous: List[Commit], message: String) extends Operational {
@@ -104,14 +95,16 @@ object Commit {
     def derived(commit: Commit) = this == commit || previous.exists(_ derived commit)
 
     def simplify = {
-      val news = previous.map { _.simplify match {
-        case Pick(c) => c
-        case it => it
-      }}
+      val news = previous.foldRight[List[Commit]](List()) { (current, list) =>
+        current.simplify match {
+          case Pick(c) => c :: list
+          case Rename(c, _) => c :: list
+          case Squash(cs, _) => cs ++ list
+          case it: Concrete => it :: list
+        }
+      }
       Squash(news, message)
     }
-
-    def isSimple = previous.forall(_.isRaw)
   }
 
   case class Raw(raw: RevCommit) extends Concrete {

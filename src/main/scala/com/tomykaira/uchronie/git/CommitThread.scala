@@ -27,8 +27,6 @@ trait CommitThread {
   val commits: List[Commit]
   type OperationResult = Either[CommitThread.Error, CommitThread]
 
-  def isSimple: Boolean = commits.forall(_.isSimple)
-
   def applyOperation(op: Operation): OperationResult = op match {
     case Operation.RenameOp(target, message) =>
       withTargetIndex(target, op).right.flatMap { index =>
