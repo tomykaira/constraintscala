@@ -14,8 +14,9 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
   rollback()
 
   def apply(nth: Int): Option[Commit] = {
-    if (commits.indices.contains(nth))
-      Some(commits(nth))
+    // TODO: do not peep thread.commits
+    if (currentThread.commits.indices.contains(nth))
+      Some(currentThread.commits(nth))
     else
       None
   }
@@ -33,7 +34,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
   }
 
   def selectRange(rows: Seq[Int]) = {
-    val selected = rows.map(i => this.commits(i)).toList
+    val selected = rows.map(i => currentThread.commits(i)).toList
     new GraphRange(this, selected)
   }
 
@@ -83,6 +84,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
 
   // parent in the target graph
   private def parent(commit: Commit): Commit = {
+    val commits = currentThread.commits
     val index = commits.indexOf(commit)
     if(index != -1 && commits.indices.contains(index + 1))
       commits(index+1)
