@@ -29,8 +29,12 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
       }
     }
     describe("Squash") {
-      it("should simplify each commit") {
-        Commit.Squash(List(Pick(Pick(core))), "Foo").simplify should equal (Commit.Squash(List(Pick(core)), "Foo"))
+      it("should simplify Pick") {
+        Commit.Squash(List(Pick(Pick(core))), "Foo").simplify should equal (Commit.Squash(List(core), "Foo"))
+      }
+      it("should not simplify Rename") {
+        val original = Commit.Squash(List(Rename(core, "A")), "Foo")
+        original.simplify should equal (original)
       }
     }
   }

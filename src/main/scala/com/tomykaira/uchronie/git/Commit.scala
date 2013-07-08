@@ -103,8 +103,13 @@ object Commit {
 
     def derived(commit: Commit) = this == commit || previous.exists(_ derived commit)
 
-    def simplify =
-      Squash(previous.map(_.simplify), message)
+    def simplify = {
+      val news = previous.map { _.simplify match {
+        case Pick(c) => c
+        case it => it
+      }}
+      Squash(news, message)
+    }
 
     def isSimple = previous.forall(_.isRaw)
   }
