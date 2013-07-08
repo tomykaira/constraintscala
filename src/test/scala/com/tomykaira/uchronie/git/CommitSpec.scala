@@ -44,7 +44,8 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
       val commits = List(
         createCommit("A", "1st", "1st"),
         createCommit("B", "2nd", "2nd"),
-        createCommit("C", "3rd", "3rd"))
+        createCommit("C", "3rd", "3rd"),
+        createCommit("D", "4rd", "4rd"))
     }
 
     describe("Pick") {
@@ -81,6 +82,32 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
           repository.resetHard(commits(0))
           val result = Rename(commits(2), "Foo").perform(repository)
           result.right.value.message should equal ("Foo")
+        }
+      }
+    }
+
+    describe("Squash") {
+      it("should squash commits") {
+        new Fixture {
+          repository.resetHard(commits(0))
+          val commit = Commit.Squash(commits.slice(1,4).reverse, "Foo").perform(repository).right.value
+          commit.message should equal ("Foo")
+          commit.raw.getParent(0) should equal (commits(0).getId)
+        }
+      }
+      it("should squash not sequential commits") {
+        new Fixture {
+          repository.resetHard(commits(0))
+          val commit = Commit.Squash(List(commits(3), commits(1)), "Foo").perform(repository).right.value
+          commit.message should equal ("Foo")
+          commit.raw.getParent(0) should equal (commits(0).getId)
+        }
+      }
+      it("should return error if commits is empty") {
+        new Fixture {
+          repository.resetHard(commits(0))
+          val result = Commit.Squash(List(), "Foo").perform(repository)
+          result should equal (Left(Commit.EmptySquash()))
         }
       }
     }
