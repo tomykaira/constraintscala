@@ -62,16 +62,12 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
 
     val squashLast: RevCommit = range.commits.head
     val orphans = commits.takeWhile(_ != squashLast)
-    val message = newMessage.getOrElse(buildSquashMessage(range).mkString)
+    val message = newMessage.getOrElse(range.squashMessage)
 
     repository.resetHard(squashLast)
     repository.resetSoft(parent(range.commits.last))
     val newHead = repository.commit(message)
     finishUpdate(applyCommits(newHead, orphans.reverse))
-  }
-
-  private[this] def buildSquashMessage(range: GraphRange): StringBuilder = {
-    range.commits.reverse.map(_.getFullMessage.stripLineEnd).addString(new StringBuilder, "\n\n")
   }
 
   def delete(range: GraphRange): Either[String, ArrangingGraph] = {
@@ -156,5 +152,9 @@ class GraphRange(val graph: ArrangingGraph, val commits: List[RevCommit]) {
 
   def first: Option[RevCommit] = {
     commits.headOption
+  }
+
+  def squashMessage: String= {
+    commits.reverse.map(_.getFullMessage.stripLineEnd).mkString("\n\n")
   }
 }

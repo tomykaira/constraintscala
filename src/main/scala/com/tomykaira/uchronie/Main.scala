@@ -87,6 +87,11 @@ object Main extends SimpleSwingApplication {
         initial = 0
       )
 
+    editFSM.onChange {
+      case _: Rebasing => processingFSM.changeStateTo(Working())
+      case _ => processingFSM.changeStateTo(Stopped())
+    }
+
     @tailrec
     def pickInteractively(orphans: GraphRange) {
       editFSM.changeStateTo(Rebasing(orphans))
@@ -101,6 +106,7 @@ object Main extends SimpleSwingApplication {
               editFSM.changeStateTo(NotEditing())
           }
         case Right(newGraph) =>
+          editFSM.changeState { case _: Rebasing => NotEditing() }
           graphConstraint.update(newGraph)
       }
     }
@@ -133,12 +139,16 @@ object Main extends SimpleSwingApplication {
     }))
     val comment = new CommentArea(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        range.first
+        Some(range)
       case _ => None
     }))
     comment.messageFSM.onChange({
-      case comment.Committing(commit, message) =>
-        dispatch(UpdateComment(graphConstraint.get, commit, message))
+      case comment.Committing(range, message) =>
+        range.commits.length match {
+          case 1 => dispatch(UpdateComment(graphConstraint.get, range.first.get, message))
+          case n if n > 1 =>
+            dispatch(Squash(graphConstraint.get, range, Some(message)))
+        }
       case _ =>
     })
     val changes = new TextArea() {
@@ -219,20 +229,25 @@ object Main extends SimpleSwingApplication {
 
   override def main(args: Array[String]) {
     new ArgumentParser(args).parse match {
-      case Left(e) => sys.error(e)
+      case Left(e) => initializationError(e)
       case Right(parsed) =>
         repository = new GitRepository(parsed.repository)
         if (!repository.isClean)
-          sys.error("Repository is not clean.  Commit everything before start uchronie for safety.")
+          initializationError("Repository is not clean.  Commit everything before start uchronie for safety.")
         repository.resolve(parsed.start) match {
           case Some(id) => start = id
-          case None => sys.error("Start SHA-1 " + parsed.start + " is not resolved to one object id")
+          case None => initializationError("Start SHA-1 " + parsed.start + " is not resolved to one object id")
         }
         repository.resolve(parsed.end) match {
           case Some(id) => end = id
-          case None => sys.error("End SHA-1 " + parsed.end + " is not resolved to one object id")
+          case None => initializationError("End SHA-1 " + parsed.end + " is not resolved to one object id")
         }
     }
     super.main(args)
+  }
+
+  def initializationError(message: String) {
+    System.err.println(message)
+    System.exit(1)
   }
 }
