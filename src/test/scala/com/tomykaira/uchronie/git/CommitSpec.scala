@@ -40,15 +40,20 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
       initRepo()
     }
 
+    trait Fixture {
+      val commits = List(
+        createCommit("A", "1st", "1st"),
+        createCommit("B", "2nd", "2nd"),
+        createCommit("C", "3rd", "3rd"))
+    }
+
     describe("Pick") {
       it("should do git pick") {
-        val commits = List(
-          createCommit("A", "1st", "1st"),
-          createCommit("B", "2nd", "2nd"),
-          createCommit("C", "3rd", "3rd"))
-        repository.resetHard(commits(0))
-        val newCommit = Pick(commits(2)).perform(repository).right.value
-        newCommit.message should equal ("3rd")
+        new Fixture {
+          repository.resetHard(commits(0))
+          val newCommit = Pick(commits(2)).perform(repository).right.value
+          newCommit.message should equal ("3rd")
+        }
       }
       it("should return error if pick failed") {
         val commits = List(
@@ -61,14 +66,12 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
         assert(result.left.value.isInstanceOf[Commit.Failed])
       }
       it("should not commit if previous is OperationCommit") {
-        val commits = List(
-          createCommit("A", "1st", "1st"),
-          createCommit("A", "2nd", "2nd"),
-          createCommit("A", "3rd", "3rd"))
-        repository.resetHard(commits(0))
-        val result = Pick(Rename(commits(2), "Foo")).perform(repository)
-        result should be ('left)
-        assert(result.left.value.isInstanceOf[Commit.NotSimple])
+        new Fixture {
+          repository.resetHard(commits(0))
+          val result = Pick(Rename(commits(2), "Foo")).perform(repository)
+          result should be ('left)
+          assert(result.left.value.isInstanceOf[Commit.NotSimple])
+        }
       }
     }
   }
