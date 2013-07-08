@@ -25,6 +25,8 @@ trait CommitThread {
   val commits: List[Commit]
   type OperationResult = Either[CommitThread.Error, CommitThread]
 
+  def isSimple: Boolean = commits.forall(_.isSimple)
+
   def applyOperation(op: Operation): OperationResult = op match {
     case Operation.RenameOp(target, message) =>
       withTargetIndex(target, op).right.flatMap { index =>
@@ -74,7 +76,7 @@ trait CommitThread {
     }
 
   private def result(commits: List[Commit]) =
-    Right(CommitThread.fromVirtualCommits(commits))
+    Right(CommitThread.fromVirtualCommits(commits.map(_.simplify)))
 
   private def pick(cs: List[Commit]) = cs map Commit.Pick
 }
