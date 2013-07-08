@@ -11,26 +11,6 @@ sealed trait Commit {
   def isSimple: Boolean
   def isRaw: Boolean
 }
-sealed trait ConcreteCommit extends Commit {
-  def simplify: Commit = this
-  def isSimple: Boolean = true
-  def isRaw: Boolean = true
-}
-sealed trait OperationCommit extends Commit {
-  def isRaw: Boolean = false
-
-  def rawPreviousCommit(commit: Commit): Either[Commit.Error, Commit.Raw] = commit match {
-    case r: Commit.Raw => Right(r)
-    case _: OperationCommit => Left(Commit.NotSimple())
-    case _: Commit.DummyCommit => Left(Commit.PreviousIsDummy())
-  }
-
-  def pick(raw: Commit.Raw, repository: GitRepository): Either[Commit.Error, Commit.Raw] =
-    repository.cherryPick(raw) match {
-      case Right(newCommit) => Right(Commit.Raw(newCommit))
-      case Left(error) => Left(Commit.Failed(error))
-    }
-}
 object Commit {
   implicit def commitToRevCommit(commit: Commit): RevCommit = commit.asInstanceOf[Raw].raw
   implicit def revCommitToRawCommit(rev: RevCommit): Commit = Raw(rev)
@@ -41,8 +21,35 @@ object Commit {
   case class EmptySquash() extends Error
   case class Failed(reason: String) extends Error
 
-  case class Pick(previous: Commit) extends OperationCommit {
-    def perform(repository: GitRepository): Either[Commit.Error, Raw] =
+  sealed trait Concrete extends Commit {
+    def derived(commit: Commit): Boolean = this == commit
+    def simplify: Commit = this
+    def isSimple: Boolean = true
+    def isRaw: Boolean = true
+  }
+
+  sealed trait Operational extends Commit {
+    def isRaw: Boolean = false
+
+    type PerformanceResult = Either[Error, Raw]
+
+    def perform(repository: GitRepository): PerformanceResult
+
+    def rawPreviousCommit(commit: Commit): Either[Error, Raw] = commit match {
+      case r: Raw => Right(r)
+      case _: Operational => Left(NotSimple())
+      case _: DummyCommit => Left(PreviousIsDummy())
+    }
+
+    protected def pick(raw: Commit.Raw, repository: GitRepository): Either[Error, Raw] =
+      repository.cherryPick(raw) match {
+        case Right(newCommit) => Right(Raw(newCommit))
+        case Left(error) => Left(Failed(error))
+      }
+  }
+
+  case class Pick(previous: Commit) extends Operational {
+    def perform(repository: GitRepository) =
       rawPreviousCommit(previous).right.flatMap(pick(_, repository))
 
     def derived(commit: Commit) = this == commit || (previous derived commit)
@@ -58,8 +65,8 @@ object Commit {
     def isSimple = previous.isRaw
   }
 
-  case class Rename(previous: Commit, message: String) extends OperationCommit {
-    def perform(repository: GitRepository): Either[Commit.Error, Raw] =
+  case class Rename(previous: Commit, message: String) extends Operational {
+    def perform(repository: GitRepository) =
       for {
         raw <- rawPreviousCommit(previous).right
         _ <- pick(raw, repository).right
@@ -78,9 +85,8 @@ object Commit {
     def isSimple = previous.isRaw
   }
 
-  case class Squash(previous: List[Commit], message: String) extends OperationCommit {
-    type PerformanceResult = Either[Commit.Error, Raw]
-    def perform(repository: GitRepository): PerformanceResult =
+  case class Squash(previous: List[Commit], message: String) extends Operational {
+    def perform(repository: GitRepository) =
       previous.reverse match {
         case Nil => Left(EmptySquash())
         case head :: rest =>
@@ -103,16 +109,12 @@ object Commit {
     def isSimple = previous.forall(_.isRaw)
   }
 
-  case class Raw(raw: RevCommit) extends ConcreteCommit {
-    def derived(commit: Commit): Boolean = this == commit
-
+  case class Raw(raw: RevCommit) extends Concrete {
     val message = raw.getFullMessage
   }
 
   // for testing
-  case class DummyCommit(id: Int) extends ConcreteCommit {
-    def derived(commit: Commit) = this == commit
-
+  case class DummyCommit(id: Int) extends Concrete {
     val message = s"Dummy $id"
   }
 }
