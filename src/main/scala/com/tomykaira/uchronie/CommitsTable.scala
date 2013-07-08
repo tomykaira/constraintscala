@@ -1,13 +1,11 @@
 package com.tomykaira.uchronie
 
-import scala.swing.{Dialog, Table}
+import scala.swing.{Swing, Table}
 import javax.swing.table.DefaultTableModel
-import com.tomykaira.constraintscala.{Transition, FSM, StaticConstraint, Constraint}
-import org.eclipse.jgit.revwalk.RevCommit
+import com.tomykaira.constraintscala.{FSM, StaticConstraint}
 import javax.swing._
 import java.awt.datatransfer.{Transferable, DataFlavor}
 import javax.activation.{DataHandler, ActivationDataFlavor}
-import scala.Some
 import scala.swing.event.TableRowsSelected
 
 class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
@@ -49,15 +47,17 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
   }
 
   graph.onChange({ arrangingGraph =>
-    val oldSelected = selectedRow
-    for (i <- 0 to model.getRowCount - 1) {
-      model.removeRow(0)
+    Swing.onEDT {
+      val oldSelected = selectedRow
+      for (i <- 0 to model.getRowCount - 1) {
+        model.removeRow(0)
+      }
+      arrangingGraph.commits.foreach(commit =>
+        model addRow new CommitDecorator(commit).tableRow(arrangingGraph.repository))
+      oldSelected.foreach(row =>
+        if (row < peer.getRowCount)
+          peer.setRowSelectionInterval(row, row))
     }
-    arrangingGraph.commits.foreach(commit =>
-      model addRow new CommitDecorator(commit).tableRow(arrangingGraph.repository))
-    oldSelected.foreach(row =>
-      if (row < peer.getRowCount)
-        peer.setRowSelectionInterval(row, row))
   })
 
   // Drag & drop set of commits
