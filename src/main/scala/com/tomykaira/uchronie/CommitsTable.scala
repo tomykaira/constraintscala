@@ -27,6 +27,8 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
 
   peer.getColumnModel.getColumn(0).setMaxWidth(100)
 
+  override protected def editor(row: Int, column: Int) = null
+
   val state = new FSM[OperationState] {
     state = NoOperation()
   }
