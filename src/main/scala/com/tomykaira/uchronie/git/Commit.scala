@@ -19,7 +19,6 @@ object Commit {
   class DummyCommitException extends RuntimeException("Defeat: DummyCommit is for testing")
 
   sealed trait Error
-  case class EmptySquash() extends Error
   case class Failed(reason: String) extends Error
 
   sealed trait Concrete extends Commit {
