@@ -2,6 +2,7 @@ package com.tomykaira.uchronie.git
 
 import org.eclipse.jgit.revwalk.RevCommit
 import scala.language.implicitConversions
+import com.tomykaira.uchronie.GitRepository
 
 sealed trait Commit {
   def derived(commit: Commit): Boolean
@@ -22,7 +23,22 @@ object Commit {
   implicit def commitToRevCommit(commit: Commit): RevCommit = commit.asInstanceOf[Raw].raw
   implicit def revCommitToRawCommit(rev: RevCommit): Commit = Raw(rev)
 
+  sealed trait Error
+  case class NotSimple() extends Error
+  case class PreviousIsDummy() extends Error
+  case class Failed(reason: String) extends Error
+
   case class Pick(previous: Commit) extends OperationCommit {
+    def perform(repository: GitRepository): Either[Commit.Error, Raw] =
+      previous match {
+        case Raw(c) => repository.cherryPick(c) match {
+          case Right(newCommit) => Right(Raw(newCommit))
+          case Left(error) => Left(Failed(error))
+        }
+        case _: OperationCommit => Left(NotSimple())
+        case _: DummyCommit => Left(PreviousIsDummy())
+      }
+
     def derived(commit: Commit) = this == commit || (previous derived commit)
 
     val message: String = previous.message
