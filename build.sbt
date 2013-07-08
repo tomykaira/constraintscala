@@ -20,6 +20,8 @@ libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "3.0.0.20130610
 
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.1.4"
 
+libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.0.1"
+
 initialCommands := "import com.tomykaira.constraintscala._; import com.tomykaira.uchronie._"
 
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
