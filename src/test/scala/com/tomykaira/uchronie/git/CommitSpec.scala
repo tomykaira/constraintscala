@@ -83,14 +83,6 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
         result should be ('left)
         assert(result.left.value.isInstanceOf[Commit.Failed])
       }
-      it("should not commit if previous is Operational") {
-        new Fixture {
-          repository.resetHard(commits(0))
-          val result = Pick(Rename(commits(2), "Foo")).perform(repository)
-          result should be ('left)
-          assert(result.left.value.isInstanceOf[Commit.NotSimple])
-        }
-      }
     }
 
     describe("Rename") {

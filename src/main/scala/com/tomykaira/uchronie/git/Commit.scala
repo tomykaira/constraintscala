@@ -13,9 +13,11 @@ object Commit {
   implicit def commitToRevCommit(commit: Commit): RevCommit = commit.asInstanceOf[Raw].raw
   implicit def revCommitToRawCommit(rev: RevCommit): Commit = Raw(rev)
 
+  class NotSimplifiedException extends RuntimeException("Defeat: maybe simplify call is forgot")
+
+  class DummyCommitException extends RuntimeException("Defeat: DummyCommit is for testing")
+
   sealed trait Error
-  case class NotSimple() extends Error
-  case class PreviousIsDummy() extends Error
   case class EmptySquash() extends Error
   case class Failed(reason: String) extends Error
 
@@ -29,11 +31,14 @@ object Commit {
 
     def perform(repository: GitRepository): PerformanceResult
 
-    def rawPreviousCommit(commit: Commit): Either[Error, Raw] = commit match {
-      case r: Raw => Right(r)
-      case _: Operational => Left(NotSimple())
-      case _: DummyCommit => Left(PreviousIsDummy())
+    def rawPreviousCommit(commit: Commit): Raw = commit match {
+      case r: Raw => r
+      case _: Operational => throw new NotSimplifiedException
+      case _: DummyCommit => throw new DummyCommitException
     }
+
+    protected def pickPrevious(commit: Commit, repository: GitRepository): Either[Error, Raw] =
+      pick(rawPreviousCommit(commit), repository)
 
     protected def pick(raw: Commit.Raw, repository: GitRepository): Either[Error, Raw] =
       repository.cherryPick(raw) match {
@@ -44,7 +49,7 @@ object Commit {
 
   case class Pick(previous: Commit) extends Operational {
     def perform(repository: GitRepository) =
-      rawPreviousCommit(previous).right.flatMap(pick(_, repository))
+      pickPrevious(previous, repository)
 
     def derived(commit: Commit) = this == commit || (previous derived commit)
 
@@ -60,8 +65,7 @@ object Commit {
   case class Rename(previous: Commit, message: String) extends Operational {
     def perform(repository: GitRepository) =
       for {
-        raw <- rawPreviousCommit(previous).right
-        _ <- pick(raw, repository).right
+        _ <- pickPrevious(previous, repository).right
         amended <- Right(repository.amendMessage(message)).right
       } yield Raw(amended)
 
@@ -82,10 +86,9 @@ object Commit {
         case Nil => Left(EmptySquash())
         case head :: rest =>
           for {
-            rawHead <- rawPreviousCommit(head).right
-            newHead <- pick(rawHead, repository).right
+            newHead <- pickPrevious(head, repository).right
             _ <- rest.foldRight[PerformanceResult](Right(newHead)) { (commit, prev) =>
-              prev.right.flatMap(_ => rawPreviousCommit(commit)).right.flatMap(pick(_, repository))
+              prev.right.flatMap(_ => pickPrevious(commit, repository))
             }.right
             _ <- Right(repository.resetSoft(newHead.getParent(0))).right
             lastCommit <- Right(repository.commit(message)).right
