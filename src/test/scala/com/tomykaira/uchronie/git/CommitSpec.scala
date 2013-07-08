@@ -74,5 +74,15 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
         }
       }
     }
+
+    describe("Rename") {
+      it("should rename a new commit") {
+        new Fixture {
+          repository.resetHard(commits(0))
+          val result = Rename(commits(2), "Foo").perform(repository)
+          result.right.value.message should equal ("Foo")
+        }
+      }
+    }
   }
 }

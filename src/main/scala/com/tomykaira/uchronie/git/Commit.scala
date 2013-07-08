@@ -53,6 +53,16 @@ object Commit {
   }
 
   case class Rename(previous: Commit, message: String) extends OperationCommit {
+    def perform(repository: GitRepository): Either[Commit.Error, Raw] =
+      previous match {
+        case Raw(c) => repository.cherryPick(c) match {
+          case Right(newCommit) => Right(Raw(repository.amendMessage(message)))
+          case Left(error) => Left(Failed(error))
+        }
+        case _: OperationCommit => Left(NotSimple())
+        case _: DummyCommit => Left(PreviousIsDummy())
+      }
+
     def derived(commit: Commit) = this == commit || (previous derived commit)
 
     def simplify =
