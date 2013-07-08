@@ -121,32 +121,34 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         result should be ('left)
       }
     }
-    describe("simplification") {
-      it("should simplify rename + rename") {
-        val result1 = thread.applyOperation(RenameOp(commits(5), "New Message")).right.value
-        val result2 = result1.applyOperation(RenameOp(result1.commits(5), "Next New Message")).right.value
-        result2.commits(5) should equal (Rename(commits(5), "Next New Message"))
-      }
-      it("should fail to simplify rename + squash") {
-        val result1 = thread.applyOperation(RenameOp(commits(5), "New Message")).right.value
-        val result2 = result1.applyOperation(SquashOp(result1.commits.slice(4,7), Some("Squash Message"))).right.value
-        assert(result2.commits(4).isInstanceOf[Commit.Squash])
-        result2.commits(4).asInstanceOf[Commit.Squash].previous should contain (result1.commits(5))
-      }
+  }
+
+  describe("simplification") {
+    it("should simplify rename + rename") {
+      val result1 = thread.applyOperation(RenameOp(commits(5), "New Message")).right.value
+      val result2 = result1.applyOperation(RenameOp(result1.commits(5), "Next New Message")).right.value
+      result2.commits(5) should equal (Rename(commits(5), "Next New Message"))
     }
-    describe("isSimple") {
-      it("should be simple if no operation") {
-        assert(thread.isSimple)
-      }
-      it("should be simple with one squash") {
-        val result = thread.applyOperation(RenameOp(commits(5), "New Message")).right.value
-        assert(result.isSimple)
-      }
-      it("should be NOT simple with rename + squash") {
-        val result1 = thread.applyOperation(RenameOp(commits(5), "New Message")).right.value
-        val result2 = result1.applyOperation(SquashOp(result1.commits.slice(4,7), Some("Squash Message"))).right.value
-        assert(!result2.isSimple)
-      }
+    it("should fail to simplify rename + squash") {
+      val result1 = thread.applyOperation(RenameOp(commits(5), "New Message")).right.value
+      val result2 = result1.applyOperation(SquashOp(result1.commits.slice(4,7), Some("Squash Message"))).right.value
+      assert(result2.commits(4).isInstanceOf[Commit.Squash])
+      result2.commits(4).asInstanceOf[Commit.Squash].previous should contain (result1.commits(5))
+    }
+  }
+
+  describe("isSimple") {
+    it("should be simple if no operation") {
+      assert(thread.isSimple)
+    }
+    it("should be simple with one squash") {
+      val result = thread.applyOperation(RenameOp(commits(5), "New Message")).right.value
+      assert(result.isSimple)
+    }
+    it("should be NOT simple with rename + squash") {
+      val result1 = thread.applyOperation(RenameOp(commits(5), "New Message")).right.value
+      val result2 = result1.applyOperation(SquashOp(result1.commits.slice(4,7), Some("Squash Message"))).right.value
+      assert(!result2.isSimple)
     }
   }
 }
