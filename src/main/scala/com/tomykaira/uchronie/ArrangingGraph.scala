@@ -2,13 +2,12 @@ package com.tomykaira.uchronie
 
 import org.eclipse.jgit.lib.{Constants, ObjectId}
 import scala.annotation.tailrec
-import com.tomykaira.uchronie.git.{CommitThread, ThreadTransition, Commit}
+import com.tomykaira.uchronie.git.{Operation, CommitThread, ThreadTransition, Commit}
 
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val last: ObjectId) {
-  type OperationResult = Either[String, ArrangingGraph]
+  type OperationResult = Either[String, CommitThread]
 
   private lazy val startCommit: Commit = repository.toCommit(start)
-  private lazy val lastCommit: Commit = repository.toCommit(last)
   lazy val commits: List[Commit.Raw] = repository.listCommits(start, last).map(Commit.Raw)
   val transition: ThreadTransition = new ThreadTransition(CommitThread.fromCommits(commits))
 
@@ -21,21 +20,16 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
       None
   }
 
+  def currentThread: CommitThread = {
+    transition.current
+  }
+
   def rollback() {
     repository.resetHard(last)
   }
 
   def updateComment(target: Commit, message: String): OperationResult = {
-    for { // FIXME
-      index <- (commits.indexOf(target) match {
-        case -1 => Left("Target " + target.getName + " not included in current list")
-        case i => Right(i)
-      }).right
-      orphans <- Right(commits.take(index)).right
-      _ <- Right(repository.resetHard(target)).right
-      newHead <- Right(repository.amendMessage(message)).right
-      newLast <- finishUpdate(applyCommits(newHead, orphans.reverse)).right
-    } yield newLast
+    transition.transit(Operation.RenameOp(target, message)).left.map(_.toString)
   }
 
   def selectRange(rows: Seq[Int]) = {
@@ -46,39 +40,23 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
   def contains(range: GraphRange): Boolean = range.graph == this
 
   def reorder(range: GraphRange, insertTo: Int): OperationResult = {
-    if (range.isEmpty) return Right(this)
+    if (range.isEmpty) return Right(currentThread)
 
-    val newOrder = commits.take(insertTo).filterNot(range.commits contains _) ++
-      range.commits ++
-      commits.drop(insertTo).filterNot(range.commits contains _)
-
-    val (common, todo) = skipCommonRoot(newOrder.reverse, commits.reverse, startCommit)
-    repository.resetHard(common)
-    finishUpdate(applyCommits(common, todo))
+    transition.transit(Operation.MoveOp(range.commits, insertTo)).left.map(_.toString)
   }
 
   def squash(range: GraphRange, newMessage: Option[String]): OperationResult = {
-    if(range.commits.size <= 1) return Right(this)
-    if(!isSequentialSlice(range.commits))
-      return Left("Only sequential commits can be squashed.\nReorder commits before squashing")
+    if (range.commits.size <= 1) return Right(currentThread)
 
-    val squashLast: Commit = range.commits.head
-    val orphans = commits.takeWhile(_ != squashLast)
-    val message = newMessage.getOrElse(range.squashMessage)
+    if (range.isEmpty) return Right(currentThread)
 
-    repository.resetHard(squashLast)
-    repository.resetSoft(parent(range.commits.last))
-    val newHead = repository.commit(message)
-    finishUpdate(applyCommits(newHead, orphans.reverse))
+    transition.transit(Operation.SquashOp(range.commits, newMessage)).left.map(_.toString)
   }
 
   def delete(range: GraphRange): OperationResult = {
-    if (range.isEmpty) return Right(this)
-
-    val newCommits = commits.filterNot(range.commits contains _)
-    val (common, todo) = skipCommonRoot(newCommits.reverse, commits.reverse, startCommit)
-    repository.resetHard(common)
-    finishUpdate(applyCommits(common, todo))
+    range.commits.foldLeft[Either[CommitThread.Error, CommitThread]](Right(currentThread)) { (prev, c) =>
+      prev.right.flatMap(_ => transition.transit(Operation.DeleteOp(c)))
+    }.left.map(_.toString)
   }
 
   def startEdit(commit: Commit): GraphRange = {
@@ -103,8 +81,6 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
     loop(range.commits.reverse)
   }
 
-  private def isSequentialSlice(part: List[Commit]): Boolean = commits.containsSlice(part)
-
   // parent in the target graph
   private def parent(commit: Commit): Commit = {
     val index = commits.indexOf(commit)
@@ -112,22 +88,6 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
       commits(index+1)
     else
       startCommit
-  }
-
-  // commits should be ordered from old to new
-  private def applyCommits(first: Commit, commits: List[Commit]): Either[CherryPickFailure, Commit] = {
-    commits.foldLeft[Either[CherryPickFailure, Commit]](Right(first))(
-      (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c).right.map[Commit](rev => rev)))
-  }
-
-  private def finishUpdate(newLast: Either[CherryPickFailure, Commit]): OperationResult = {
-    newLast match {
-      case Left(CherryPickFailure(commit)) =>
-        rollback()
-        Left("Cherry-pick failed at " + commit.getName)
-      case Right(c) =>
-        Right(new ArrangingGraph(repository, start, c))
-    }
   }
 
   @tailrec

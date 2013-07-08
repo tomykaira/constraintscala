@@ -3,10 +3,9 @@ package com.tomykaira.uchronie
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
 import org.scalatest.EitherValues._
-import org.eclipse.jgit.lib.{IndexDiff, Constants}
-import org.eclipse.jgit.treewalk.FileTreeIterator
-import org.eclipse.jgit.revwalk.RevCommit
+import org.eclipse.jgit.lib.Constants
 import com.tomykaira.uchronie.git.Commit
+import scala.language.reflectiveCalls
 
 class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -22,7 +21,9 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     lazy val fourth = commits(3)
 
     def emptyRange: GraphRange = graph.selectRange(Seq())
-    def messages(g: ArrangingGraph): List[String] = g.commits.map(_.getFullMessage)
+
+    def messages(g: { val commits: List[Commit] }): List[String] = g.commits.map(_.message)
+
     def commitsInRange(seq: Seq[Int]) =
       graph.selectRange(seq).commits
   }
@@ -97,7 +98,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("reorder") {
     it("should return self if range is empty") {
       new Fixture {
-        graph.reorder(emptyRange, 0).right.value should equal (graph)
+        graph.reorder(emptyRange, 0).right.value should equal (graph.currentThread)
       }
     }
     it("should reorder commits to move the last row to the top") {
@@ -105,13 +106,6 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
         val range = graph.selectRange(Seq(2))
         val newGraph = graph.reorder(range, 0)
         messages(newGraph.right.value) should equal (List("2nd", "4th", "3rd"))
-      }
-    }
-    it("should actually modify git tree") {
-      new Fixture {
-        val range = graph.selectRange(Seq(2))
-        val newCommits = graph.reorder(range, 0).right.value.commits
-        newCommits(0).getParent(0) should equal (newCommits(1).raw)
       }
     }
     it("should reorder two commits") {
@@ -128,29 +122,17 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
         messages(newGraph.right.value) should equal (List("3rd", "2nd", "4th"))
       }
     }
-    it("should reset to the original branch if failed") {
-      val commits = List(
-        createCommit("A", "1st", "1st"),
-        createCommit("A", "2st", "2st"),
-        createCommit("A", "3st", "3st")
-      )
-      val graph = new ArrangingGraph(repository, commits.head, commits.last)
-      val range = graph.selectRange(Seq(0))
-      val result = graph.reorder(range, 2)
-      result should be ('left)
-      repository.resolve(Constants.HEAD).get should equal (commits.last.getId)
-    }
   }
 
   describe("squash") {
     it("should do nothing if no commit is selected") {
       new Fixture {
-        emptyRange.squash(None).right.value should equal (graph)
+        emptyRange.squash(None).right.value should equal (graph.currentThread)
       }
     }
     it("should do nothing if 1 commit is selected") {
       new Fixture {
-        graph.selectRange(Seq(2)).squash(None).right.value should equal (graph)
+        graph.selectRange(Seq(2)).squash(None).right.value should equal (graph.currentThread)
       }
     }
     it("should squash 2 commits into one") {
@@ -182,7 +164,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("delete") {
     it("should do nothing if no commit is selected") {
       new Fixture {
-        emptyRange.delete().right.value should equal (graph)
+        emptyRange.delete().right.value should equal (graph.currentThread)
       }
     }
     it("should create new tree without a specified commit") {
