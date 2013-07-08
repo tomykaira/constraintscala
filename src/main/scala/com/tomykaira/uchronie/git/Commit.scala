@@ -10,11 +10,19 @@ sealed trait Commit {
   def isSimple: Boolean
   def isRaw: Boolean
 }
+sealed trait ConcreteCommit extends Commit {
+  def simplify: Commit = this
+  def isSimple: Boolean = true
+  def isRaw: Boolean = true
+}
+sealed trait OperationCommit extends Commit {
+  def isRaw: Boolean = false
+}
 object Commit {
   implicit def commitToRevCommit(commit: Commit): RevCommit = commit.asInstanceOf[Raw].raw
   implicit def revCommitToRawCommit(rev: RevCommit): Commit = Raw(rev)
 
-  case class Pick(previous: Commit) extends Commit {
+  case class Pick(previous: Commit) extends OperationCommit {
     def derived(commit: Commit) = this == commit || (previous derived commit)
 
     val message: String = previous.message
@@ -26,11 +34,9 @@ object Commit {
       }
 
     def isSimple = previous.isRaw
-
-    def isRaw = false
   }
 
-  case class Rename(previous: Commit, message: String) extends Commit {
+  case class Rename(previous: Commit, message: String) extends OperationCommit {
     def derived(commit: Commit) = this == commit || (previous derived commit)
 
     def simplify =
@@ -41,43 +47,27 @@ object Commit {
       }
 
     def isSimple = previous.isRaw
-
-    def isRaw = false
   }
 
-  case class Squash(previous: List[Commit], message: String) extends Commit {
+  case class Squash(previous: List[Commit], message: String) extends OperationCommit {
     def derived(commit: Commit) = this == commit || previous.exists(_ derived commit)
 
     def simplify =
       Squash(previous.map(_.simplify), message)
 
     def isSimple = previous.forall(_.isRaw)
-
-    def isRaw = false
   }
 
-  case class Raw(raw: RevCommit) extends Commit {
+  case class Raw(raw: RevCommit) extends ConcreteCommit {
     def derived(commit: Commit): Boolean = this == commit
 
     val message = raw.getFullMessage
-
-    def simplify: Commit = this
-
-    def isSimple = true
-
-    def isRaw = true
   }
 
   // for testing
-  case class DummyCommit(id: Int) extends Commit {
+  case class DummyCommit(id: Int) extends ConcreteCommit {
     def derived(commit: Commit) = this == commit
 
     val message = s"Dummy $id"
-
-    def simplify: Commit = this
-
-    def isSimple = true
-
-    def isRaw = true
   }
 }
