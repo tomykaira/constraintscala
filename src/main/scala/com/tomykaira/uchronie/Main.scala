@@ -133,12 +133,16 @@ object Main extends SimpleSwingApplication {
     }))
     val comment = new CommentArea(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        range.first
+        Some(range)
       case _ => None
     }))
     comment.messageFSM.onChange({
-      case comment.Committing(commit, message) =>
-        dispatch(UpdateComment(graphConstraint.get, commit, message))
+      case comment.Committing(range, message) =>
+        range.commits.length match {
+          case 1 => dispatch(UpdateComment(graphConstraint.get, range.first.get, message))
+          case n if n > 1 =>
+            dispatch(Squash(graphConstraint.get, range, Some(message)))
+        }
       case _ =>
     })
     val changes = new TextArea() {
