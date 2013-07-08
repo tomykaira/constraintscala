@@ -89,7 +89,6 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
         repository.resetHard(commits(0))
         val result = Pick(commits(2)).perform(repository)
         result should be ('left)
-        assert(result.left.value.isInstanceOf[Commit.Failed])
       }
     }
 

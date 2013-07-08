@@ -10,6 +10,8 @@ import scala.Some
 import org.eclipse.jgit.treewalk.CanonicalTreeParser
 import org.eclipse.jgit.diff.{DiffFormatter, DiffEntry}
 
+case class CherryPickFailure(original: RevCommit)
+
 class GitRepository(rootPath: File) {
   val repository = new FileRepositoryBuilder().
     setGitDir(rootPath).
@@ -58,10 +60,10 @@ class GitRepository(rootPath: File) {
   def amendMessage(message: String): RevCommit =
     git.commit.setAmend(true).setMessage(message).call()
 
-  def cherryPick(commit: RevCommit): Either[String, RevCommit] with Product with Serializable = {
+  def cherryPick(commit: RevCommit): Either[CherryPickFailure, RevCommit] = {
     val result = git.cherryPick().include(commit.getId).call()
     if (result.getStatus != CherryPickResult.CherryPickStatus.OK)
-      Left("Cherry-pick failed at " + commit.getName)
+      Left(CherryPickFailure(commit))
     else
       Right(result.getNewHead)
   }

@@ -29,7 +29,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
   }
 
   def updateComment(target: Commit, message: String): Either[String, ArrangingGraph] = {
-    val result = for { // FIXME
+    for { // FIXME
       index <- (commits.indexOf(target) match {
         case -1 => Left("Target " + target.getName + " not included in current list")
         case i => Right(i)
@@ -37,9 +37,8 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
       orphans <- Right(commits.take(index)).right
       _ <- Right(repository.resetHard(target)).right
       newHead <- Right(repository.amendMessage(message)).right
-      newLast <- applyCommits(newHead, orphans.reverse).right
+      newLast <- finishUpdate(applyCommits(newHead, orphans.reverse)).right
     } yield newLast
-    finishUpdate(result)
   }
 
   def selectRange(rows: Seq[Int]) = {
@@ -119,16 +118,16 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
   }
 
   // commits should be ordered from old to new
-  private def applyCommits(first: Commit, commits: List[Commit]): Either[String, Commit] = {
-    commits.foldLeft[Either[String, Commit]](Right(first))(
+  private def applyCommits(first: Commit, commits: List[Commit]): Either[CherryPickFailure, Commit] = {
+    commits.foldLeft[Either[CherryPickFailure, Commit]](Right(first))(
       (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c).right.map[Commit](rev => rev)))
   }
 
-  private def finishUpdate(newLast: Either[String, Commit]): Either[String, ArrangingGraph] = {
+  private def finishUpdate(newLast: Either[CherryPickFailure, Commit]): Either[String, ArrangingGraph] = {
     newLast match {
-      case Left(err) =>
+      case Left(CherryPickFailure(commit)) =>
         rollback()
-        Left(err)
+        Left("Cherry-pick failed at " + commit.getName)
       case Right(c) =>
         Right(repository.listCommits(start, c))
     }

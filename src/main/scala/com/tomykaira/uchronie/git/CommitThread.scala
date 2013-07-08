@@ -2,7 +2,7 @@ package com.tomykaira.uchronie.git
 
 import org.eclipse.jgit.revwalk.RevCommit
 import scala.collection.mutable.ListBuffer
-import com.tomykaira.uchronie.GitRepository
+import com.tomykaira.uchronie.{CherryPickFailure, GitRepository}
 import scalaz.NonEmptyList
 
 object CommitThread {
@@ -90,8 +90,8 @@ trait CommitThread {
    * @return Error from OperationCommit.perform on failure, new CommitThread
    *         with Raw commits on success
    */
-  def perform(repository: GitRepository): Either[Commit.Error, CommitThread] = {
-    val newCommits = commits.foldRight[Either[Commit.Error, List[Commit]]](Right(List()))((current, news) =>
+  def perform(repository: GitRepository): Either[CherryPickFailure, CommitThread] = {
+    val newCommits = commits.foldRight[Either[CherryPickFailure, List[Commit]]](Right(List()))((current, news) =>
       current match {
         case commit: Commit.Operational =>
           news.right.flatMap(list => commit.perform(repository).right.map(_ :: list))

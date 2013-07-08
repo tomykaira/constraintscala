@@ -2,7 +2,7 @@ package com.tomykaira.uchronie.git
 
 import org.eclipse.jgit.revwalk.RevCommit
 import scala.language.implicitConversions
-import com.tomykaira.uchronie.GitRepository
+import com.tomykaira.uchronie.{CherryPickFailure, GitRepository}
 import scalaz.NonEmptyList
 
 sealed trait Commit {
@@ -18,16 +18,13 @@ object Commit {
 
   class DummyCommitException extends RuntimeException("Defeat: DummyCommit is for testing")
 
-  sealed trait Error
-  case class Failed(reason: String) extends Error
-
   sealed trait Concrete extends Commit {
     def derived(commit: Commit): Boolean = this == commit
     def simplify: Commit = this
   }
 
   sealed trait Operational extends Commit {
-    type PerformanceResult = Either[Error, Raw]
+    type PerformanceResult = Either[CherryPickFailure, Raw]
 
     def perform(repository: GitRepository): PerformanceResult
 
@@ -37,14 +34,11 @@ object Commit {
       case _: DummyCommit => throw new DummyCommitException
     }
 
-    protected def pickPrevious(commit: Commit, repository: GitRepository): Either[Error, Raw] =
+    protected def pickPrevious(commit: Commit, repository: GitRepository): Either[CherryPickFailure, Raw] =
       pick(rawPreviousCommit(commit), repository)
 
-    protected def pick(raw: Commit.Raw, repository: GitRepository): Either[Error, Raw] =
-      repository.cherryPick(raw) match {
-        case Right(newCommit) => Right(Raw(newCommit))
-        case Left(error) => Left(Failed(error))
-      }
+    protected def pick(raw: Commit.Raw, repository: GitRepository): Either[CherryPickFailure, Raw] =
+      repository.cherryPick(raw).right.map(Raw)
   }
 
   case class Pick(previous: Commit) extends Operational {
