@@ -8,13 +8,20 @@ import java.awt.datatransfer.{Transferable, DataFlavor}
 import javax.activation.{DataHandler, ActivationDataFlavor}
 import scala.swing.event.TableRowsSelected
 import scalaz.NonEmptyList
+import com.tomykaira.uchronie.ui.CommitDecorator
+
+object CommitsTable {
+  type Index = Int
+
+  type SelectedRange = NonEmptyList[Index]
+}
 
 class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
   sealed trait OperationState
   case class NoOperation() extends OperationState
-  case class RowsSelected(range: GraphRange) extends OperationState
-  case class Dragging(range: GraphRange) extends OperationState
-  case class Dropped(range: GraphRange, at: Int) extends OperationState
+  case class RowsSelected(range: CommitsTable.SelectedRange) extends OperationState
+  case class Dragging(range: CommitsTable.SelectedRange) extends OperationState
+  case class Dropped(range: CommitsTable.SelectedRange, at: CommitsTable.Index) extends OperationState
 
   override lazy val model = super.model.asInstanceOf[DefaultTableModel]
   autoResizeMode = Table.AutoResizeMode.LastColumn
@@ -25,6 +32,8 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
   model addColumn "Comment"
 
   peer.getColumnModel.getColumn(0).setMaxWidth(100)
+
+  peer.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION)
 
   override protected def editor(row: Int, column: Int) = null
 
@@ -40,7 +49,7 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
     case _: TableRowsSelected => {
       peer.getSelectedRows.toList match {
         case Nil => state.changeStateTo(NoOperation())
-        case h :: t => state.changeStateTo(RowsSelected(graph.get.selectRange(NonEmptyList.nel(h, t))))
+        case h :: t => state.changeStateTo(RowsSelected(NonEmptyList.nel(h, t)))
       }
     }
   }

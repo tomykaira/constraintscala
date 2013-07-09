@@ -30,55 +30,39 @@ trait CommitThread {
   type OperationResult = Either[CommitThread.Error, CommitThread]
 
   def applyOperation(op: Operation): OperationResult = op match {
-    case Operation.RenameOp(target, message) =>
-      withTargetIndex(target, op).right.flatMap { index =>
-        result(pick(commits.take(index)) ++ (Commit.Rename(target, message) :: commits.drop(index + 1)))
-      }
-    case Operation.DeleteOp(target) =>
-      withTargetIndex(target, op).right.flatMap { index =>
+    case Operation.RenameOp(index, message) =>
+      if (!commits.indices.contains(index))
+        Right(this)
+      else
+        result(pick(commits.take(index)) ++ (Commit.Rename(commits(index), message) :: commits.drop(index + 1)))
+    case Operation.DeleteOp(index) =>
+      if (!commits.indices.contains(index))
+        Right(this)
+      else
         result(pick(commits.take(index)) ++ commits.drop(index + 1))
-      }
-    case Operation.MoveOp(targets, pos) =>
-      if (targets.isEmpty)
+    case Operation.MoveOp(indices, pos) => {
+      if (indices.isEmpty || indices.diff(commits.indices).nonEmpty)
         return Right(this)
-      indicesInList(targets, op).right.flatMap { indices =>
-        val lastTarget = indices.max
-        val picked = pick(commits.take(lastTarget)) ++ commits.drop(lastTarget)
-        result(picked.take(pos).filterNot(p => targets.exists(t => p derived t)) ++
-          pick(targets) ++
-          picked.drop(pos).filterNot(p => targets.exists(t => p derived t)))
-      }
-    case Operation.SquashOp(targets, message) =>
-      targets match {
-        case Nil => Right(this)
-        case head :: tail =>
-          if (commits.containsSlice(targets)) {
-            val firstIndex = commits.indexOf(targets.head)
-            val lastIndex = firstIndex + targets.length
-            val newMessage = message.getOrElse(targets.reverse.map(_.message.stripLineEnd).mkString("\n\n"))
-            result(pick(commits.take(firstIndex)) ++
-              (Commit.Squash(NonEmptyList.nel(head, tail), newMessage) :: commits.drop(lastIndex)))
-          } else {
-            Left(CommitThread.NotSequentialSlice(this, op))
-          }
-      }
-  }
 
-  private def indicesInList(targets: List[Commit], op: Operation): Either[CommitThread.Error, List[Int]] = {
-    val indices = targets.map(commits.indexOf(_))
-    val notFound = indices.indexOf(-1)
-    if (notFound != -1) {
-      Left(CommitThread.CommitNotFound(this, op, targets(notFound)))
-    } else {
-      Right(indices)
+      val targets = indices.map(commits(_))
+      val lastTarget = indices.max
+      val picked = pick(commits.take(lastTarget)) ++ commits.drop(lastTarget)
+      result(picked.take(pos).filterNot(p => targets.exists(t => p derived t)) ++
+        pick(targets) ++
+        picked.drop(pos).filterNot(p => targets.exists(t => p derived t)))
+    }
+    case Operation.SquashOp(indices, message) => {
+      if (indices.isEmpty || indices.diff(commits.indices).nonEmpty)
+        return Right(this)
+
+      val firstIndex = indices.head
+      val lastIndex = indices.last
+      val targets = NonEmptyList.nel(indices.head, indices.tail).map(commits(_))
+      val newMessage = message.getOrElse(targets.list.reverse.map(_.message.stripLineEnd).mkString("\n\n"))
+      result(pick(commits.take(firstIndex)) ++
+        (Commit.Squash(targets, newMessage) :: commits.drop(lastIndex + 1)))
     }
   }
-
-  private def withTargetIndex(target: Commit, op: Operation) =
-    commits.indexOf(target) match {
-      case -1 => Left(CommitThread.CommitNotFound(this, op, target))
-      case index: Int => Right(index)
-    }
 
   private def result(commits: List[Commit]) =
     Right(CommitThread.fromCommits(commits.map(_.simplify)))

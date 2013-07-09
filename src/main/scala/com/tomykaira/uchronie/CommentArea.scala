@@ -6,12 +6,12 @@ import scala.swing.event.{Key, KeyReleased}
 import java.awt.event.InputEvent
 import javax.swing.text.DefaultCaret
 
-class CommentArea(constraint: Constraint[Option[GraphRange]]) extends TextArea {
+class CommentArea(constraint: Constraint[Option[(ArrangingGraph, CommitsTable.SelectedRange)]]) extends TextArea {
   sealed trait MessageState
   case class NothingSelected() extends MessageState
-  case class Selected(commit: GraphRange) extends MessageState
-  case class Editing(commit: GraphRange) extends MessageState
-  case class Committing(commit: GraphRange, newComment: String) extends MessageState
+  case class Selected(range: CommitsTable.SelectedRange, defaultMessage: String) extends MessageState
+  case class Editing(range: CommitsTable.SelectedRange) extends MessageState
+  case class Committing(range: CommitsTable.SelectedRange, newComment: String) extends MessageState
 
   listenTo(keys)
 
@@ -23,8 +23,8 @@ class CommentArea(constraint: Constraint[Option[GraphRange]]) extends TextArea {
   }
 
   constraint.onChange({
-    case Some(range) =>
-      messageFSM.changeStateTo(Selected(range))
+    case Some((graph, range)) =>
+      messageFSM.changeStateTo(Selected(range, graph.squashMessage(range)))
     case None => messageFSM.changeStateTo(NothingSelected())
   })
 
@@ -32,8 +32,8 @@ class CommentArea(constraint: Constraint[Option[GraphRange]]) extends TextArea {
     case NothingSelected() | Committing(_,_) =>
       editable = false
       background = java.awt.Color.gray
-    case Selected(range) =>
-      text = range.squashMessage
+    case Selected(range, message) =>
+      text = message
       editable = true
       background = java.awt.Color.white
     case Editing(_)  =>
@@ -44,8 +44,8 @@ class CommentArea(constraint: Constraint[Option[GraphRange]]) extends TextArea {
   reactions += {
     case e: KeyReleased =>
       if((e.modifiers & InputEvent.CTRL_DOWN_MASK) == InputEvent.CTRL_DOWN_MASK && e.key == Key.Enter)
-        messageFSM.changeState({ case Editing(commit) => Committing(commit, text) })
+        messageFSM.changeState({ case Editing(r) => Committing(r, text) })
       else
-        messageFSM.changeState({ case Selected(commit) => Editing(commit) })
+        messageFSM.changeState({ case Selected(r, _) => Editing(r) })
   }
 }

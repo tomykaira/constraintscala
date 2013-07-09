@@ -2,6 +2,7 @@ package com.tomykaira.uchronie
 
 import org.scalatest.{BeforeAndAfter, FunSpec}
 import org.scalatest.matchers.ShouldMatchers
+import com.tomykaira.uchronie.ui.CommitDecorator
 
 class CommitDecoratorSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {

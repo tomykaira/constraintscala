@@ -1,7 +1,8 @@
-package com.tomykaira.uchronie
+package com.tomykaira.uchronie.ui
 
 import com.tomykaira.uchronie.git.Commit
 import org.eclipse.jgit.diff.DiffEntry
+import com.tomykaira.uchronie.GitRepository
 
 case class CommitDecorator(commit: Commit) {
   def tableRow: Array[AnyRef] =

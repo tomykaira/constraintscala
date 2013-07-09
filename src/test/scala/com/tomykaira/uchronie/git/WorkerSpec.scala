@@ -44,7 +44,7 @@ class WorkerSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
   describe("on receiving ArrangingGraph") {
     it("should apply the operations") {
       new Fixture {
-        graph.transit(Operation.RenameOp(commits(2), "New 3rd"))
+        graph.transit(Operation.RenameOp(1, "New 3rd"))
         dispatch(graph).onSuccess {
           case newGraph =>
             w { messages(newGraph) should equal (List("4th", "New 3rd", "2nd")) }

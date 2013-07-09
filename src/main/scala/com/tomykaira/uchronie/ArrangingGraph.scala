@@ -35,10 +35,14 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
     repository.resetHard(last)
   }
 
-  def selectRange(rows: NonEmptyList[Int]) = {
-    val selected = rows.map(i => currentThread.commits(i))
-    new GraphRange(this, selected)
-  }
+  def selectRange(rows: NonEmptyList[Int]): GraphRange =
+    new GraphRange(this, rowsToCommits(rows))
+
+  def squashMessage(rows: NonEmptyList[Int]): String =
+    rowsToCommits(rows).list.reverse.map(_.message.stripLineEnd).mkString("\n\n")
+
+  def rowsToCommits(rows: NonEmptyList[Int]): NonEmptyList[Commit] =
+    rows.map(i => currentThread.commits(i))
 
   def contains(range: GraphRange): Boolean = range.graph == this
 
@@ -108,7 +112,4 @@ class GraphRange(val graph: ArrangingGraph, val commits: NonEmptyList[Commit]) {
     commits.head
   }
 
-  def squashMessage: String= {
-    commits.list.reverse.map(_.message.stripLineEnd).mkString("\n\n")
-  }
 }

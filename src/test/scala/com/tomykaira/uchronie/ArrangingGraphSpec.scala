@@ -71,25 +71,25 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("transit") {
     it("should rename commits in currentThread") {
       new Fixture {
-        graph.transit(Operation.RenameOp(third, "New 3rd"))
+        graph.transit(Operation.RenameOp(1, "New 3rd"))
         messages(graph.currentThread) should equal (List("4th", "New 3rd", "2nd"))
       }
     }
     it("should move commits") {
       new Fixture {
-        graph.transit(Operation.MoveOp(commitsInRange(1, 2), 0))
+        graph.transit(Operation.MoveOp(List(1, 2), 0))
         messages(graph.currentThread) should equal (List("3rd", "2nd", "4th"))
       }
     }
     it("should squash 2 commits") {
       new Fixture {
-        graph.transit(Operation.SquashOp(commitsInRange(1, 2), None))
+        graph.transit(Operation.SquashOp(List(1, 2), None))
         messages(graph.currentThread) should equal (List("4th", "2nd\n\n3rd"))
       }
     }
     it("should delete the specified commit") {
       new Fixture {
-        graph.transit(Operation.DeleteOp(third))
+        graph.transit(Operation.DeleteOp(1))
         messages(graph.currentThread) should equal (List("4th", "2nd"))
       }
     }
@@ -155,10 +155,10 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       val commits = (1 to 10).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
       val graph = new ArrangingGraph(repository, commits.last, commits.head)
       val result = for {
-        t <- graph.transit(Operation.RenameOp(commits(5), "New")).right             // 10 9 8 7 6 New 4 3 2
-        t <- graph.transit(Operation.MoveOp(t.commits.slice(5,9), 0)).right         // New 4 3 2 10 9 8 7 6
-        t <- graph.transit(Operation.DeleteOp(t.commits(2))).right                  // New 4 2 10 9 8 7 6
-        t <- graph.transit(Operation.SquashOp(t.commits.slice(1,4), None)).right    // New 4-2-10 9 8 7 6
+        t <- graph.transit(Operation.RenameOp(5, "New")).right             // 10 9 8 7 6 New 4 3 2
+        t <- graph.transit(Operation.MoveOp((5 to 8).toList, 0)).right         // New 4 3 2 10 9 8 7 6
+        t <- graph.transit(Operation.DeleteOp(2)).right                  // New 4 2 10 9 8 7 6
+        t <- graph.transit(Operation.SquashOp((1 to 3).toList, None)).right    // New 4-2-10 9 8 7 6
         r <- graph.applyCurrentThread.right
       } yield r
 

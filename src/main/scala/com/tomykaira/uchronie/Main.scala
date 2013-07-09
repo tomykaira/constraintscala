@@ -17,7 +17,7 @@ import scala.swing.event.ButtonClicked
 import com.tomykaira.uchronie.git.Commit
 import scala.Some
 import javax.swing.text.DefaultCaret
-import com.tomykaira.uchronie.ui.OperationView
+import com.tomykaira.uchronie.ui.{CommitDecorator, OperationView}
 
 object Main extends SimpleSwingApplication {
   val system = ActorSystem("Worker")
@@ -148,25 +148,25 @@ object Main extends SimpleSwingApplication {
     commitsTable.state.onChange({
       case commitsTable.Dropped(range, at) =>
         commitsTable.state.changeStateTo(commitsTable.RowsSelected(range))
-        dispatch(Operation.MoveOp(range.commits.list, at))
+        dispatch(Operation.MoveOp(range.list, at))
       case _ =>
     })
 
     val changedFiles = new FileList(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        new CommitDecorator(range.first).diff(repository).getOrElse(Nil)
+        graphConstraint.get(range.head) flatMap { c => new CommitDecorator(c).diff(repository) } getOrElse Nil
       case _ => Nil
     }))
     val comment = new CommentArea(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        Some(range)
+        Some((graphConstraint.get, range))
       case _ => None
     }))
     comment.messageFSM.onChange({
       case comment.Committing(range, message) =>
-        range.commits.tail match {
-          case Nil => dispatch(Operation.RenameOp(range.first, message))
-          case _ => dispatch(Operation.SquashOp(range.commits.list, Some(message)))
+        range.tail match {
+          case Nil => dispatch(Operation.RenameOp(range.head, message))
+          case _ => dispatch(Operation.SquashOp(range.list, Some(message)))
         }
       case _ =>
     })
@@ -197,7 +197,7 @@ object Main extends SimpleSwingApplication {
                     case comment.Editing(_) => Some(comment.text)
                     case _ => None
                   }
-                  dispatch(Operation.SquashOp(range.commits.list, newMessage))
+                  dispatch(Operation.SquashOp(range.list, newMessage))
                 case _ =>
               }
           }
@@ -207,22 +207,14 @@ object Main extends SimpleSwingApplication {
             case e: ButtonClicked =>
               commitsTable.state.get match {
                 case commitsTable.RowsSelected(range) =>
-                  range.commits.list foreach {c => dispatch(Operation.DeleteOp(c))}
+                  range.list foreach {c => dispatch(Operation.DeleteOp(c))}
                 case _ =>
               }
           }
         }
         contents += new Button("Edit") {
           reactions += {
-            case e: ButtonClicked =>
-              commitsTable.state.get match {
-                case commitsTable.RowsSelected(range) =>
-                  range.first match {
-                    case Commit.Raw(r) => editFSM.changeState(NotEditing(), EditCommit(r))
-                    case _ => sys.error("Unsupported operation")
-                  }
-                case _ =>
-              }
+            case e: ButtonClicked => sys.error("Unsupported operation")
           }
         }
       }
