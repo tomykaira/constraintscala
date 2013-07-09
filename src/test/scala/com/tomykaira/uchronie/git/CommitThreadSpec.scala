@@ -134,7 +134,7 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       // 10 9 8 7 6 New 4 3 2
       val result = thread.applyOperation(RenameOp(5, "New")).perform(repository)
 
-      val newCommits = result.right.value.commits
+      val newCommits = result.right.value
       newCommits(5).message should equal ("New")
       newCommits should have length 9
     }
@@ -150,7 +150,7 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         applyOperation(SquashOp(TargetRange(1, 3), None)).    // New 4-2-10 9 8 7 6
         perform(repository)
 
-      result.right.value.commits.map(_.message) should equal (List("New", "10\n\n2\n\n4", "9", "8", "7", "6"))
+      result.right.value.map(_.message) should equal (List("New", "10\n\n2\n\n4", "9", "8", "7", "6"))
     }
   }
 }

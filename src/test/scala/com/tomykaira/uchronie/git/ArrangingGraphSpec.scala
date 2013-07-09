@@ -14,7 +14,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
 
   trait GraphUtilities {
     val commits: List[Commit.Raw]
-    lazy val graph = new ArrangingGraph(repository, commits.head, commits.last)
+    lazy val graph = ArrangingGraph.startUp(repository, commits.head, commits.last)
     lazy val first = commits(0)
     lazy val second = commits(1)
     lazy val third = commits(2)
@@ -45,26 +45,26 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("transit") {
     it("should rename commits in currentThread") {
       new Fixture {
-        graph.transit(Operation.RenameOp(1, "New 3rd"))
-        messages(graph.currentThread) should equal (List("4th", "New 3rd", "2nd"))
+        val next = graph.transit(Operation.RenameOp(1, "New 3rd"))
+        messages(next) should equal (List("4th", "New 3rd", "2nd"))
       }
     }
     it("should move commits") {
       new Fixture {
-        graph.transit(Operation.MoveOp(TargetRange(1, 2), 0))
-        messages(graph.currentThread) should equal (List("3rd", "2nd", "4th"))
+        val next = graph.transit(Operation.MoveOp(TargetRange(1, 2), 0))
+        messages(next) should equal (List("3rd", "2nd", "4th"))
       }
     }
     it("should squash 2 commits") {
       new Fixture {
-        graph.transit(Operation.SquashOp(TargetRange(1, 2), None))
-        messages(graph.currentThread) should equal (List("4th", "2nd\n\n3rd"))
+        val next = graph.transit(Operation.SquashOp(TargetRange(1, 2), None))
+        messages(next) should equal (List("4th", "2nd\n\n3rd"))
       }
     }
     it("should delete the specified commit") {
       new Fixture {
-        graph.transit(Operation.DeleteOp(1))
-        messages(graph.currentThread) should equal (List("4th", "2nd"))
+        val next = graph.transit(Operation.DeleteOp(1))
+        messages(next) should equal (List("4th", "2nd"))
       }
     }
   }
@@ -72,15 +72,15 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("applyCurrentThread") {
     it("should actually apply the result of operations") {
       val commits = (1 to 10).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
-      val graph = new ArrangingGraph(repository, commits.last, commits.head)
-      graph.transit(Operation.RenameOp(5, "New"))                   // 10 9 8 7 6 New 4 3 2
-      graph.transit(Operation.MoveOp(TargetRange(5, 8), 0))         // New 4 3 2 10 9 8 7 6
-      graph.transit(Operation.DeleteOp(2))                          // New 4 2 10 9 8 7 6
-      graph.transit(Operation.SquashOp(TargetRange(1, 3), None))    // New 4-2-10 9 8 7 6
-      val result = graph.applyCurrentThread
+      val result = ArrangingGraph.startUp(repository, commits.last, commits.head).
+        transit(Operation.RenameOp(5, "New")).                   // 10 9 8 7 6 New 4 3 2
+        transit(Operation.MoveOp(TargetRange(5, 8), 0)).         // New 4 3 2 10 9 8 7 6
+        transit(Operation.DeleteOp(2)).                          // New 4 2 10 9 8 7 6
+        transit(Operation.SquashOp(TargetRange(1, 3), None)).    // New 4-2-10 9 8 7 6
+        applyCurrentThread
 
       val newGraph: ArrangingGraph = result.right.value
-      val newCommits = newGraph.currentThread.commits
+      val newCommits = newGraph.commits
       assert(newCommits.forall(_.isInstanceOf[Commit.Raw]))
 
       val revCommits = repository.git.log().addRange(newGraph.start, newGraph.last).call().iterator().asScala.toList
@@ -91,7 +91,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("startEdit") {
     it("should reset to specified commit") {
       val commits = (1 to 5).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
-      val graph = new ArrangingGraph(repository, commits.last, commits.head)
+      val graph = ArrangingGraph.startUp(repository, commits.last, commits.head)
       val result = graph.startEdit(2)    // 5 4 _3_ 2 (1)
       repository.head should equal (commits(3).raw)
       result.commits.head should equal (commits(1))

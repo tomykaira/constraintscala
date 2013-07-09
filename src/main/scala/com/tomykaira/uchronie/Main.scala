@@ -17,7 +17,7 @@ import scala.swing.event.ButtonClicked
 import com.tomykaira.uchronie.git.Commit
 import scala.Some
 import javax.swing.text.DefaultCaret
-import com.tomykaira.uchronie.ui.{CommitDecorator, OperationView}
+import com.tomykaira.uchronie.ui.{EditManager, CommitDecorator, OperationView}
 
 object Main extends SimpleSwingApplication {
   val system = ActorSystem("Worker")
@@ -30,7 +30,7 @@ object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
     title = "Uchronie"
 
-    val graphConstraint = new StaticConstraint[ArrangingGraph](new ArrangingGraph(repository, start, end))
+    val graphConstraint = new StaticConstraint[ArrangingGraph](ArrangingGraph.startUp(repository, start, end))
 
     val processingFSM = new FSM[ProcessingState] {
       state = Stopped()
@@ -77,63 +77,14 @@ object Main extends SimpleSwingApplication {
       case Stopped() => commitsTable.enabled = true
     }
 
-    def openEditWaitingDialog: Dialog.Result.Value =
-      Dialog.showOptions(
-        title = "Edit commit",
-        message = "Edit files with editor and commit everything.\nThe working tree must be clean to proceed.",
-        entries = Seq("Done", "Abort"),
-        initial = 0
-      )
-
-    def openConflictFixWaitingDialog: Dialog.Result.Value =
-      Dialog.showOptions(
-        title = "Edit commit",
-        message = "Files are conflicted while rebasing.  Fix conflicts and commit all.",
-        entries = Seq("Done", "Abort"),
-        initial = 0
-      )
-
     // TODO: move somewhere
     val onEdit = { range: TargetRange =>
-      val currentGraph = graphConstraint.get
-
-      def abort() {
-        currentGraph.rollback()
-      }
-
-      def finish(done: IncrementalEditor.Done) {
-        graphConstraint.update(currentGraph.next(done.head))
-      }
-
-      def processing[A](f: => A): A = {
-        processingFSM.changeStateTo(Working())
-        val result = f
-        processingFSM.changeStateTo(Stopped())
-        result
-      }
-
-      @tailrec
-      def loop(next: IncrementalEditor): Unit = next match {
-        case done: IncrementalEditor.Done =>
-          graphConstraint.update(currentGraph.next(done.head))
-        case going: IncrementalEditor.Going =>
-          processing { going.continue } match {
-            case done: IncrementalEditor.Done => finish(done)
-            case rest: IncrementalEditor.Going =>
-              openConflictFixWaitingDialog match {
-                case Dialog.Result.Yes =>
-                  loop(rest)
-                case Dialog.Result.No =>
-                  abort()
-              }
-          }
-      }
-
-      val going = processing { currentGraph.startEdit(range.end) }
-
-      openEditWaitingDialog match {
-        case Dialog.Result.Yes => loop(going)
-        case Dialog.Result.No => abort()
+      graphConstraint.get match {
+        case clean: ArrangingGraph.Clean =>
+          new EditManager(clean, range, graphConstraint, processingFSM).run()
+        case _: ArrangingGraph.Modified =>
+          Dialog.showMessage(title = "Edit commit",
+            message = "There are not applied operation(s).\nApply all changes before editing")
       }
     }
 
@@ -146,7 +97,8 @@ object Main extends SimpleSwingApplication {
 
     val changedFiles = new FileList(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        graphConstraint.get(range.start) flatMap { c => new CommitDecorator(c).diff(repository) } getOrElse Nil
+        val c = graphConstraint.get.commits(range.start)
+        new CommitDecorator(c).diff(repository).getOrElse(Nil)
       case _ => Nil
     }))
     val comment = new CommentArea(commitsTable.state.convert({

@@ -10,10 +10,11 @@ import scala.swing.event.ButtonClicked
 class OperationView(processingFSM: FSM[ProcessingState],
     graph: StaticConstraint[ArrangingGraph],
     onApply: () => Any) extends BorderPanel {
+
   val list = new ScrollPane() {
     contents = new ListView[Operation] {
       graph.onChange { g =>
-        listData = g.transition.operations
+        listData = g.history
         repaint()
       }
     }
@@ -25,8 +26,18 @@ class OperationView(processingFSM: FSM[ProcessingState],
     maximumSize = preferredSize
     minimumSize = preferredSize
     tooltip = "Apply stacked changes to the repository"
+
+    graph.onChange {
+      case _: ArrangingGraph.Modified => enabled = true
+      case _: ArrangingGraph.Clean => enabled = false
+    }
+
     reactions += {
-      case e: ButtonClicked => onApply()
+      case e: ButtonClicked =>
+        graph.get match {
+          case m: ArrangingGraph.Modified => onApply()
+          case _: ArrangingGraph.Clean =>
+        }
     }
   }
 
@@ -35,12 +46,19 @@ class OperationView(processingFSM: FSM[ProcessingState],
     maximumSize = preferredSize
     minimumSize = preferredSize
     tooltip = "Undo a change"
+
+    graph.onChange {
+      case _: ArrangingGraph.Modified => enabled = true
+      case _: ArrangingGraph.Clean => enabled = false
+    }
+
     reactions += {
       case e: ButtonClicked => {
-        graph.get.transition.pop()
-        graph.update(graph.get)
+        graph.get match {
+          case m: ArrangingGraph.Modified => graph.update(m.previous)
+          case _: ArrangingGraph.Clean =>
+        }
       }
-
     }
   }
 

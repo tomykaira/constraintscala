@@ -68,7 +68,7 @@ trait CommitThread {
    * @return Error from OperationCommit.perform on failure, new CommitThread
    *         with Raw commits on success
    */
-  def perform(repository: GitRepository): Either[CherryPickFailure, CommitThread] = {
+  def perform(repository: GitRepository): Either[CherryPickFailure, List[Commit.Raw]] = {
     @tailrec
     def rebase(commits: List[Commit], result: List[Commit.Raw]):
         Either[CherryPickFailure, List[Commit.Raw]] = commits match {
@@ -85,6 +85,6 @@ trait CommitThread {
         }
       case _ => throw new RuntimeException("Unexpected commit")
     }
-    rebase(commits.reverse, List()).right.map(CommitThread.fromCommits)
+    rebase(commits.reverse, List())
   }
 }

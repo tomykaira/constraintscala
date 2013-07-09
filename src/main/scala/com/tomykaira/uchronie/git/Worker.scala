@@ -4,8 +4,10 @@ import akka.actor.{Status, Actor}
 
 class Worker extends Actor {
   def receive = {
-    case g: ArrangingGraph =>
+    case g: ArrangingGraph.Modified =>
       respondResult(g.applyCurrentThread)
+    case g: ArrangingGraph.Clean =>
+      respondResult(Right(g))
   }
 
   def respondResult(result: Either[String, ArrangingGraph]) {

@@ -18,9 +18,9 @@ class WorkerSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
 
   trait Utilities {
     val commits: List[Commit.Raw]
-    lazy val graph = new ArrangingGraph(repository, commits.head, commits.last)
+    lazy val graph = ArrangingGraph.startUp(repository, commits.head, commits.last)
 
-    def messages(g: ArrangingGraph): List[String] = g.commits.map(_.getFullMessage)
+    def messages(g: ArrangingGraph): List[String] = g.commits.map(_.message)
 
     val system = ActorSystem("test")
     val actor = system.actorOf(Props[Worker])
@@ -42,10 +42,20 @@ class WorkerSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
   describe("on receiving ArrangingGraph") {
     it("should apply the operations") {
       new Fixture {
-        graph.transit(Operation.RenameOp(1, "New 3rd"))
-        dispatch(graph).onSuccess {
+        val modified = graph.transit(Operation.RenameOp(1, "New 3rd"))
+        dispatch(modified).onSuccess {
           case newGraph =>
             w { messages(newGraph) should equal (List("4th", "New 3rd", "2nd")) }
+            w.dismiss()
+        }
+        w.await()
+      }
+    }
+    it("should return itself if clean") {
+      new Fixture {
+        dispatch(graph).onSuccess {
+          case newGraph =>
+            w { newGraph should equal (graph) }
             w.dismiss()
         }
         w.await()

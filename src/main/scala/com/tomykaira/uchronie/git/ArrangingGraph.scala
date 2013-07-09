@@ -2,59 +2,93 @@ package com.tomykaira.uchronie.git
 
 import org.eclipse.jgit.lib.ObjectId
 import com.tomykaira.uchronie.{TargetRange, GitRepository}
+import com.tomykaira.uchronie.git.Commit.Raw
 
-class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val last: ObjectId) {
-  private lazy val startCommit: Commit.Raw = Commit.Raw(repository.toCommit(start))
-  lazy val commits: List[Commit.Raw] = repository.listCommits(start, last).map(Commit.Raw)
-  val transition: ThreadTransition = new ThreadTransition(CommitThread.fromCommits(commits))
+sealed trait ArrangingGraph {
+  val repository: GitRepository
 
-  rollback()
+  val start: Commit.Raw
 
-  def apply(nth: Int): Option[Commit] = {
-    // TODO: do not peep thread.commits
-    if (currentThread.commits.indices.contains(nth))
-      Some(currentThread.commits(nth))
-    else
-      None
+  val last: Commit.Raw
+
+  val thread: CommitThread
+
+  val history: List[Operation]
+
+  lazy val commits = thread.commits
+
+  def transit(op: Operation): ArrangingGraph.Modified = {
+    val from = this
+    new ArrangingGraph.Modified {
+      val thread = from.thread.applyOperation(op)
+      val history = op :: from.history
+      val previous = from
+    }
   }
 
-  def currentThread: CommitThread = {
-    transition.current
-  }
-
-  def transit(op: Operation): CommitThread = {
-    transition.transit(op)
-  }
-
-  def rollback() {
+  def rollback: ArrangingGraph.Clean = {
     repository.resetHard(last)
+    ArrangingGraph.renew(this, last)
   }
 
   def squashMessage(rows: List[Int]): String =
     rowsToCommits(rows).reverse.map(_.message.stripLineEnd).mkString("\n\n")
 
   def rowsToCommits(rows: List[Int]): List[Commit] =
-    rows.map(i => currentThread.commits(i))
+    rows.map(i => thread.commits(i))
+}
 
-  def applyCurrentThread: Either[String, ArrangingGraph] = {
-    repository.resetHard(start)
-    currentThread.perform(repository) match {
-      case Left(failure) => Left(failure.toString)
-      case Right(thread) =>
-        thread.commits.headOption match {
-          case None =>
-            Left("Unsupported operation: All commits are deleted")
-          case Some(commit) =>
-            Right(next(commit.asInstanceOf[Commit.Raw]))
-        }
+object ArrangingGraph {
+  sealed trait Clean extends ArrangingGraph {
+    lazy private val rawCommits = repository.listCommits(start, last)
+    lazy val thread: CommitThread = CommitThread.fromRevCommits(rawCommits)
+    val history: List[Operation] = List()
+
+    def startEdit(index: TargetRange.Index): IncrementalEditor.Going = {
+      val commits = rawCommits.map(Raw)
+      val range = commits.slice(0, index + 1).reverse
+      val parent = if (index + 1 >= commits.length) start else commits(index + 1)
+      IncrementalEditor.startEdit(repository, parent, range)
     }
   }
 
-  def next(newLast: ObjectId) = new ArrangingGraph(repository, start, newLast)
+  sealed trait Modified extends ArrangingGraph {
+    val previous: ArrangingGraph
+    lazy val repository: GitRepository = previous.repository
+    lazy val start = previous.start
+    lazy val last = previous.last
 
-  def startEdit(index: TargetRange.Index): IncrementalEditor.Going = {
-    val range = commits.slice(0, index + 1).reverse
-    val parent = if (index + 1 >= commits.length) startCommit else commits(index + 1)
-    IncrementalEditor.startEdit(repository, parent, range)
+    def applyCurrentThread: Either[String, ArrangingGraph.Clean] = {
+      repository.resetHard(start)
+      thread.perform(repository) match {
+        case Left(failure) => Left(failure.toString)
+        case Right(result) =>
+          result.headOption match {
+            case None =>
+              Left("Unsupported operation: All commits are deleted")
+            case Some(commit) =>
+              Right(renew(this, commit))
+          }
+      }
+    }
   }
+
+  def startUp(repo: GitRepository, startRef: ObjectId, lastRef: ObjectId): ArrangingGraph.Clean = {
+    new Clean {
+      val repository: GitRepository = repo
+      val start: Raw = Raw(repository.toCommit(startRef))
+      val last: Raw = Raw(repository.toCommit(lastRef))
+
+      repository.resetHard(last)
+    }
+  }
+
+  def renew(base: ArrangingGraph, next: Raw): ArrangingGraph.Clean = {
+    new Clean {
+      val repository: GitRepository = base.repository
+      val start: Raw = base.start
+      val last: Raw = next
+    }
+  }
+
 }
