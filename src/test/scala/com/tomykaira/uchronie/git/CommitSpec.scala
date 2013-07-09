@@ -119,6 +119,16 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
           commit.raw.getParent(0) should equal (commits(0).getId)
         }
       }
+      it("should squash edits on the same file commits") {
+        val commits = List(
+          createCommit("A", "1st", "1st"),
+          createCommit("A", "2nd", "2nd"),
+          createCommit("A", "3rd", "3rd"),
+          createCommit("A", "4rd", "4rd"))
+        repository.resetHard(commits(0))
+        val commit = createSquash(commits.slice(1,4).reverse, "Foo").perform(repository).right.value
+        commit.message should equal ("Foo")
+      }
     }
   }
 }

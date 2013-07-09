@@ -87,7 +87,7 @@ object Commit {
       val reversed = previous.reverse
       for {
         newHead <- pickPrevious(reversed.head, repository).right
-        _ <- reversed.tail.foldRight[PerformanceResult](Right(newHead)) { (commit, prev) =>
+        _ <- reversed.tail.foldLeft[PerformanceResult](Right(newHead)) { (prev, commit) =>
           prev.right.flatMap(_ => pickPrevious(commit, repository))
         }.right
         _ <- Right(repository.resetSoft(newHead.raw.getParent(0))).right
