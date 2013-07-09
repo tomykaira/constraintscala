@@ -104,6 +104,10 @@ object Main extends SimpleSwingApplication {
         currentGraph.rollback()
       }
 
+      def finish(done: IncrementalEditor.Done) {
+        graphConstraint.update(currentGraph.next(done.head))
+      }
+
       def processing[A](f: => A): A = {
         processingFSM.changeStateTo(Working())
         val result = f
@@ -117,7 +121,7 @@ object Main extends SimpleSwingApplication {
           graphConstraint.update(currentGraph.next(done.head))
         case going: IncrementalEditor.Going =>
           processing { going.continue } match {
-            case done: IncrementalEditor.Done => done
+            case done: IncrementalEditor.Done => finish(done)
             case rest: IncrementalEditor.Going =>
               openConflictFixWaitingDialog match {
                 case Dialog.Result.Yes =>
@@ -176,36 +180,38 @@ object Main extends SimpleSwingApplication {
         border = new EmptyBorder(0,0,0,0)
       }
 
+    def currentRange: Option[TargetRange] = commitsTable.state.get match {
+        case commitsTable.RowsSelected(range) => Some(range)
+        case _ => None
+      }
+
     val commitsController = new BorderPanel() {
       val buttons = new GridPanel(1, 2) {
         maximumSize = new Dimension(Integer.MAX_VALUE, 50)
         contents += new Button("Squash") {
           reactions += {
             case e: ButtonClicked =>
-              commitsTable.state.get match {
-                case commitsTable.RowsSelected(range) =>
-                  val newMessage = comment.messageFSM.get match {
-                    case comment.Editing(_) => Some(comment.text)
-                    case _ => None
-                  }
-                  dispatch(Operation.SquashOp(range, newMessage))
-                case _ =>
+              currentRange.foreach { range =>
+                val newMessage = comment.messageFSM.get match {
+                  case comment.Editing(_) => Some(comment.text)
+                  case _ => None
+                }
+                dispatch(Operation.SquashOp(range, newMessage))
               }
           }
         }
         contents += new Button("Delete") {
           reactions += {
-            case e: ButtonClicked =>
-              commitsTable.state.get match {
-                case commitsTable.RowsSelected(range) =>
-                  range.list foreach {c => dispatch(Operation.DeleteOp(c))}
-                case _ =>
-              }
+            case e: ButtonClicked => currentRange.foreach { range =>
+              range.list foreach {c => dispatch(Operation.DeleteOp(c))}
+            }
           }
         }
         contents += new Button("Edit") {
           reactions += {
-            case e: ButtonClicked => sys.error("Unsupported operation")
+            case e: ButtonClicked => currentRange.foreach { range =>
+              onEdit(range)
+            }
           }
         }
       }
