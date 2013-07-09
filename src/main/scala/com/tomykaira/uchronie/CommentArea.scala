@@ -5,6 +5,7 @@ import com.tomykaira.constraintscala.{FSM, Constraint}
 import scala.swing.event.{Key, KeyReleased}
 import java.awt.event.InputEvent
 import javax.swing.text.DefaultCaret
+import com.tomykaira.uchronie.git.ArrangingGraph
 
 class CommentArea(constraint: Constraint[Option[(ArrangingGraph, TargetRange)]]) extends TextArea {
   sealed trait MessageState
@@ -24,7 +25,7 @@ class CommentArea(constraint: Constraint[Option[(ArrangingGraph, TargetRange)]])
 
   constraint.onChange({
     case Some((graph, range)) =>
-      messageFSM.changeStateTo(Selected(range, graph.squashMessage(range.nel)))
+      messageFSM.changeStateTo(Selected(range, graph.squashMessage(range.list)))
     case None => messageFSM.changeStateTo(NothingSelected())
   })
 

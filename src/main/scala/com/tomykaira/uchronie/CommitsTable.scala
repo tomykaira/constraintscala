@@ -8,6 +8,7 @@ import java.awt.datatransfer.{Transferable, DataFlavor}
 import javax.activation.{DataHandler, ActivationDataFlavor}
 import scala.swing.event.TableRowsSelected
 import com.tomykaira.uchronie.ui.CommitDecorator
+import com.tomykaira.uchronie.git.ArrangingGraph
 
 
 class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {

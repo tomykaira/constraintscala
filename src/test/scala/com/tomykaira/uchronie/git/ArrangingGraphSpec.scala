@@ -1,13 +1,10 @@
-package com.tomykaira.uchronie
+package com.tomykaira.uchronie.git
 
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
 import org.scalatest.EitherValues._
-import org.eclipse.jgit.lib.Constants
-import com.tomykaira.uchronie.git.{Operation, Commit}
-import scala.language.reflectiveCalls
 import scala.collection.JavaConverters.asScalaIteratorConverter
-import scalaz.NonEmptyList
+import com.tomykaira.uchronie.{TargetRange, GitSpecHelper}
 
 class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -25,7 +22,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     def messages(g: { val commits: List[Commit] }): List[String] = g.commits.map(_.message)
 
     def commitsInRange(h: Int, t: Int*) =
-      graph.rowsToCommits(NonEmptyList.nel(h, t.toList)).list
+      graph.rowsToCommits(h :: t.toList)
   }
 
   trait Fixture extends GraphUtilities {

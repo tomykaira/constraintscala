@@ -1,6 +1,6 @@
 package com.tomykaira.uchronie.git
 
-import com.tomykaira.uchronie.{ArrangingGraph, GitSpecHelper}
+import com.tomykaira.uchronie.GitSpecHelper
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
 import akka.actor.{Props, ActorSystem}
@@ -8,7 +8,6 @@ import org.scalatest.concurrent.AsyncAssertions.Waiter
 import akka.pattern.ask
 import akka.util.Timeout
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 

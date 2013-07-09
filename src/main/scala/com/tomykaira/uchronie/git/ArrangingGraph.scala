@@ -1,16 +1,12 @@
-package com.tomykaira.uchronie
+package com.tomykaira.uchronie.git
 
-import org.eclipse.jgit.lib.{Constants, ObjectId}
-import scala.annotation.tailrec
-import com.tomykaira.uchronie.git._
-import com.tomykaira.uchronie.git.Commit.Raw
-import scalaz.NonEmptyList
-import scala.Some
+import org.eclipse.jgit.lib.ObjectId
+import com.tomykaira.uchronie.{TargetRange, GitRepository}
 
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val last: ObjectId) {
   type OperationResult = Either[String, CommitThread]
 
-  private lazy val startCommit: Commit.Raw = Raw(repository.toCommit(start))
+  private lazy val startCommit: Commit.Raw = Commit.Raw(repository.toCommit(start))
   lazy val commits: List[Commit.Raw] = repository.listCommits(start, last).map(Commit.Raw)
   val transition: ThreadTransition = new ThreadTransition(CommitThread.fromCommits(commits))
 
@@ -36,10 +32,10 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
     repository.resetHard(last)
   }
 
-  def squashMessage(rows: NonEmptyList[Int]): String =
-    rowsToCommits(rows).list.reverse.map(_.message.stripLineEnd).mkString("\n\n")
+  def squashMessage(rows: List[Int]): String =
+    rowsToCommits(rows).reverse.map(_.message.stripLineEnd).mkString("\n\n")
 
-  def rowsToCommits(rows: NonEmptyList[Int]): NonEmptyList[Commit] =
+  def rowsToCommits(rows: List[Int]): List[Commit] =
     rows.map(i => currentThread.commits(i))
 
   def applyCurrentThread: Either[String, ArrangingGraph] = {

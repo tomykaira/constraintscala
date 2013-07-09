@@ -1,7 +1,6 @@
 package com.tomykaira.uchronie.git
 
 import akka.actor.{Status, Actor}
-import com.tomykaira.uchronie.ArrangingGraph
 
 class Worker extends Actor {
   def receive = {

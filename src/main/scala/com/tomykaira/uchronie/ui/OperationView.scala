@@ -4,8 +4,7 @@ import com.tomykaira.constraintscala.{StaticConstraint, FSM}
 import com.tomykaira.uchronie.Main.{Stopped, Working, ProcessingState}
 import scala.swing._
 import java.awt.Dimension
-import com.tomykaira.uchronie.ArrangingGraph
-import com.tomykaira.uchronie.git.Operation
+import com.tomykaira.uchronie.git.{ArrangingGraph, Operation}
 import scala.swing.event.ButtonClicked
 
 class OperationView(processingFSM: FSM[ProcessingState],
