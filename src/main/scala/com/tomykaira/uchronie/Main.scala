@@ -17,27 +17,24 @@ import scala.swing.event.ButtonClicked
 import com.tomykaira.uchronie.git.{Reorder, Commit, UpdateComment}
 import scala.Some
 import javax.swing.text.DefaultCaret
+import com.tomykaira.uchronie.ui.OperationView
 
 object Main extends SimpleSwingApplication {
   val system = ActorSystem("Worker")
   val actor = system.actorOf(Props[Worker])
+
+  sealed trait ProcessingState
+  case class Working() extends ProcessingState
+  case class Stopped() extends ProcessingState
 
   def top: Frame = new MainFrame() {
     title = "Uchronie"
 
     val graph = new ArrangingGraph(repository, start, end)
     val graphConstraint = new StaticConstraint[ArrangingGraph](graph)
-    val progressBar = new ProgressBar { indeterminate = false }
 
-    sealed trait ProcessingState
-    case class Working() extends ProcessingState
-    case class Stopped() extends ProcessingState
     val processingFSM = new FSM[ProcessingState] {
       state = Stopped()
-    }
-    processingFSM.onChange {
-      case Working() => progressBar.indeterminate = true
-      case Stopped() => progressBar.indeterminate = false
     }
 
     def dispatch(c: Command) {
@@ -207,18 +204,22 @@ object Main extends SimpleSwingApplication {
           }
         }
       }
-      add(progressBar, BorderPanel.Position.North)
       add(scrollable(commitsTable), BorderPanel.Position.Center)
       add(buttons, BorderPanel.Position.South)
     }
 
-    contents = new SplitPane(Orientation.Vertical,
+    val gitView = new SplitPane(Orientation.Vertical,
       new SplitPane(Orientation.Horizontal, commitsController, scrollable(comment)) {
         dividerLocation = 200
       },
       new SplitPane(Orientation.Horizontal, scrollable(changedFiles), scrollable(changes)) {
         dividerLocation = 200
       })
+
+    contents = new BorderPanel() {
+      add(new OperationView(processingFSM, graphConstraint), BorderPanel.Position.North)
+      add(gitView, BorderPanel.Position.Center)
+    }
 
     override def closeOperation() {
       repository.resetToOriginalBranch()
