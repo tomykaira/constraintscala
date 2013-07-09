@@ -4,8 +4,9 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
 import org.scalatest.EitherValues._
 import org.eclipse.jgit.lib.Constants
-import com.tomykaira.uchronie.git.Commit
+import com.tomykaira.uchronie.git.{Operation, Commit}
 import scala.language.reflectiveCalls
+import scala.collection.JavaConverters.{asScalaIteratorConverter, collectionAsScalaIterableConverter}
 
 class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -227,6 +228,27 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
         val result = graph.applyInteractively(range)
         result.left.value should equal (range)
       }
+    }
+  }
+
+  describe("applyCurrentThread") {
+    it("should actually apply the result of operations") {
+      val commits = (1 to 10).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
+      val graph = new ArrangingGraph(repository, commits.last, commits.head)
+      val result = for {
+        t <- graph.transit(Operation.RenameOp(commits(5), "New")).right             // 10 9 8 7 6 New 4 3 2
+        t <- graph.transit(Operation.MoveOp(t.commits.slice(5,9), 0)).right         // New 4 3 2 10 9 8 7 6
+        t <- graph.transit(Operation.DeleteOp(t.commits(2))).right                  // New 4 2 10 9 8 7 6
+        t <- graph.transit(Operation.SquashOp(t.commits.slice(1,4), None)).right    // New 4-2-10 9 8 7 6
+        r <- graph.applyCurrentThread.right
+      } yield r
+
+      val newGraph: ArrangingGraph = result.right.value
+      val newCommits = newGraph.currentThread.commits
+      assert(newCommits.forall(_.isInstanceOf[Commit.Raw]))
+
+      val revCommits = repository.git.log().addRange(newGraph.start, newGraph.last).call().iterator().asScala.toList
+      revCommits.map(_.getFullMessage) should equal (List("New", "10\n\n2\n\n4", "9", "8", "7", "6"))
     }
   }
 }

@@ -3,6 +3,7 @@ package com.tomykaira.uchronie
 import org.eclipse.jgit.lib.{Constants, ObjectId}
 import scala.annotation.tailrec
 import com.tomykaira.uchronie.git.{Operation, CommitThread, ThreadTransition, Commit}
+import com.tomykaira.uchronie.git.Commit.Raw
 
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val last: ObjectId) {
   type OperationResult = Either[String, CommitThread]
@@ -23,6 +24,10 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
 
   def currentThread: CommitThread = {
     transition.current
+  }
+
+  def transit(op: Operation): OperationResult = {
+    transition.transit(op).left.map(_.toString)
   }
 
   def rollback() {
@@ -99,6 +104,23 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
     case (x::xss, Nil) => (common, x::xss)
     case (x::xss, y::yss) => if (x == y) skipCommonRoot(xss, yss, x) else (common, x::xss)
   }
+
+  def applyCurrentThread: Either[String, ArrangingGraph] = {
+    repository.resetHard(start)
+    currentThread.perform(repository) match {
+      case Left(failure) => Left(failure.toString)
+      case Right(thread) =>
+        thread.commits.headOption match {
+          case None =>
+            Left("Unsupported operation: All commits are deleted")
+          case Some(commit) =>
+            Right(nextGraph(commit.asInstanceOf[Commit.Raw]))
+        }
+    }
+  }
+
+  private def nextGraph(newLast: ObjectId) = new ArrangingGraph(repository, start, newLast)
+
 }
 
 class GraphRange(val graph: ArrangingGraph, val commits: List[Commit]) {
