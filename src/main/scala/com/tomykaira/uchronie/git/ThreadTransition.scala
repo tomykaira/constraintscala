@@ -16,6 +16,11 @@ class ThreadTransition(initial: CommitThread) {
     result
   }
 
+  def pop() = {
+    val (thread, _) = history.remove(0)
+    current = thread
+  }
+
   def threads: List[CommitThread] = current :: history.map(_._1).toList
 
   def operations: List[Operation] = history.map(_._2).toList

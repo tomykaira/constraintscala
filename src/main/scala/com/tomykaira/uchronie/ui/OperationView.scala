@@ -31,6 +31,20 @@ class OperationView(processingFSM: FSM[ProcessingState],
     }
   }
 
+  val undoButton = new Button("Undo") {
+    preferredSize = new Dimension(200, 50)
+    maximumSize = preferredSize
+    minimumSize = preferredSize
+    tooltip = "Undo a change"
+    reactions += {
+      case e: ButtonClicked => {
+        graph.get.transition.pop()
+        graph.update(graph.get)
+      }
+
+    }
+  }
+
   val progressBar = new ProgressBar {
     processingFSM.onChange {
       case Working() => indeterminate = true
@@ -39,6 +53,6 @@ class OperationView(processingFSM: FSM[ProcessingState],
   }
 
   add(list, BorderPanel.Position.Center)
-  add(applyButton, BorderPanel.Position.East)
+  add(new BoxPanel(Orientation.Horizontal) { contents += (applyButton, undoButton) }, BorderPanel.Position.East)
   add(progressBar, BorderPanel.Position.South)
 }
