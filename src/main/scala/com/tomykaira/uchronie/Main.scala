@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.swing.event.ButtonClicked
-import com.tomykaira.uchronie.git.{Reorder, Commit, UpdateComment}
+import com.tomykaira.uchronie.git.Commit
 import scala.Some
 import javax.swing.text.DefaultCaret
 import com.tomykaira.uchronie.ui.OperationView
@@ -66,17 +66,8 @@ object Main extends SimpleSwingApplication {
       case None =>
     }
 
-    def dispatch(c: Command) {
-      (c match {
-        case UpdateComment(g, target, message) =>
-          g.updateComment(target, message)
-        case Reorder(g, range, pos) =>
-          g.reorder(range, pos)
-        case Squash(g, range, message) =>
-          g.squash(range, message)
-        case Delete(g, range) =>
-          g.delete(range)
-      }) match {
+    def dispatch(op: Operation) {
+      graphConstraint.get.transit(op) match {
         case Right(_) => graphConstraint.update(graphConstraint.get) // FIXME: fake update
         case Left(err) =>
           Dialog.showMessage(title = "Error", message = err)
@@ -154,7 +145,7 @@ object Main extends SimpleSwingApplication {
     commitsTable.state.onChange({
       case commitsTable.Dropped(range, at) =>
         commitsTable.state.changeStateTo(commitsTable.RowsSelected(range))
-        dispatch(Reorder(range.graph, range, at))
+        dispatch(Operation.MoveOp(range.commits, at))
       case _ =>
     })
 
@@ -170,10 +161,10 @@ object Main extends SimpleSwingApplication {
     }))
     comment.messageFSM.onChange({
       case comment.Committing(range, message) =>
-        range.commits.length match {
-          case 1 => dispatch(UpdateComment(graphConstraint.get, range.first.get, message))
-          case n if n > 1 =>
-            dispatch(Squash(graphConstraint.get, range, Some(message)))
+        range.commits match {
+          case Nil =>
+          case c :: Nil => dispatch(Operation.RenameOp(c, message))
+          case commits => dispatch(Operation.SquashOp(commits, Some(message)))
         }
       case _ =>
     })
@@ -204,7 +195,7 @@ object Main extends SimpleSwingApplication {
                     case comment.Editing(_) => Some(comment.text)
                     case _ => None
                   }
-                  dispatch(Squash(range.graph, range, newMessage))
+                  dispatch(Operation.SquashOp(range.commits, newMessage))
                 case _ =>
               }
           }
@@ -214,7 +205,7 @@ object Main extends SimpleSwingApplication {
             case e: ButtonClicked =>
               commitsTable.state.get match {
                 case commitsTable.RowsSelected(range) =>
-                  dispatch(Delete(range.graph, range))
+                  range.commits foreach {c => dispatch(Operation.DeleteOp(c))}
                 case _ =>
               }
           }

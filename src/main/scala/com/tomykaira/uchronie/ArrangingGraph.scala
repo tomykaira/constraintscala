@@ -34,36 +34,12 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
     repository.resetHard(last)
   }
 
-  def updateComment(target: Commit, message: String): OperationResult = {
-    transition.transit(Operation.RenameOp(target, message)).left.map(_.toString)
-  }
-
   def selectRange(rows: Seq[Int]) = {
     val selected = rows.map(i => currentThread.commits(i)).toList
     new GraphRange(this, selected)
   }
 
   def contains(range: GraphRange): Boolean = range.graph == this
-
-  def reorder(range: GraphRange, insertTo: Int): OperationResult = {
-    if (range.isEmpty) return Right(currentThread)
-
-    transition.transit(Operation.MoveOp(range.commits, insertTo)).left.map(_.toString)
-  }
-
-  def squash(range: GraphRange, newMessage: Option[String]): OperationResult = {
-    if (range.commits.size <= 1) return Right(currentThread)
-
-    if (range.isEmpty) return Right(currentThread)
-
-    transition.transit(Operation.SquashOp(range.commits, newMessage)).left.map(_.toString)
-  }
-
-  def delete(range: GraphRange): OperationResult = {
-    range.commits.foldLeft[Either[CommitThread.Error, CommitThread]](Right(currentThread)) { (prev, c) =>
-      prev.right.flatMap(_ => transition.transit(Operation.DeleteOp(c)))
-    }.left.map(_.toString)
-  }
 
   // TODO: accept only Raw
   def startEdit(commit: Commit): GraphRange = {

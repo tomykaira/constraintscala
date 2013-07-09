@@ -45,28 +45,6 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       createCommit("A", "4th", "4th"))
   }
 
-  describe("updateComment") {
-    it("should create new ArrangingGraph inheriting current") {
-      new Fixture {
-        val result = graph.updateComment(third, "New 3rd").right.value
-        messages(result) should equal (List("4th", "New 3rd", "2nd"))
-      }
-    }
-    it("should include all when the first is updated") {
-      new Fixture {
-        val result = graph.updateComment(second, "New").right.value
-        messages(result) should equal (List("4th", "3rd", "New"))
-      }
-    }
-    it("should inherit range after updated") {
-      new Fixture {
-        val short = new ArrangingGraph(repository, first, third)
-        val result = short.updateComment(second, "New").right.value
-        messages(result) should equal (List("3rd", "New"))
-      }
-    }
-  }
-
   describe("selectRange") {
     it("should refer original graph") {
       new Fixture {
@@ -96,82 +74,31 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     }
   }
 
-  describe("reorder") {
-    it("should return self if range is empty") {
+  describe("transit") {
+    it("should rename commits in currentThread") {
       new Fixture {
-        graph.reorder(emptyRange, 0).right.value should equal (graph.currentThread)
+        graph.transit(Operation.RenameOp(third, "New 3rd"))
+        messages(graph.currentThread) should equal (List("4th", "New 3rd", "2nd"))
       }
     }
-    it("should reorder commits to move the last row to the top") {
-      new Fixture {
-        val range = graph.selectRange(Seq(2))
-        val newGraph = graph.reorder(range, 0)
-        messages(newGraph.right.value) should equal (List("2nd", "4th", "3rd"))
-      }
-    }
-    it("should reorder two commits") {
+    it("should move commits") {
       new Fixture {
         val range = graph.selectRange(Seq(1,2))
-        val newGraph = graph.reorder(range, 0)
-        messages(newGraph.right.value) should equal (List("3rd", "2nd", "4th"))
+        graph.transit(Operation.MoveOp(range.commits, 0))
+        messages(graph.currentThread) should equal (List("3rd", "2nd", "4th"))
       }
     }
-    it("should reorder new to old") {
+    it("should squash 2 commits") {
       new Fixture {
-        val range = graph.selectRange(Seq(0))
-        val newGraph = graph.reorder(range, 3)
-        messages(newGraph.right.value) should equal (List("3rd", "2nd", "4th"))
+        val range = graph.selectRange(Seq(1,2))
+        graph.transit(Operation.SquashOp(range.commits, None))
+        messages(graph.currentThread) should equal (List("4th", "2nd\n\n3rd"))
       }
     }
-  }
-
-  describe("squash") {
-    it("should do nothing if no commit is selected") {
+    it("should delete the specified commit") {
       new Fixture {
-        graph.squash(emptyRange, None).right.value should equal (graph.currentThread)
-      }
-    }
-    it("should do nothing if 1 commit is selected") {
-      new Fixture {
-        graph.squash(graph.selectRange(Seq(2)), None).right.value should equal (graph.currentThread)
-      }
-    }
-    it("should squash 2 commits into one") {
-      new Fixture {
-        val result = graph.squash(graph.selectRange(Seq(1,2)), None)
-        messages(result.right.value) should equal (List("4th", "2nd\n\n3rd"))
-      }
-    }
-    it("should squash 3 commits into one") {
-      new Fixture {
-        val result = graph.squash(graph.selectRange(Seq(0,1,2)), None)
-        messages(result.right.value) should equal (List("2nd\n\n3rd\n\n4th"))
-      }
-    }
-    it("should fail without operation if range is not sequential") {
-      new Fixture {
-        val result = graph.squash(graph.selectRange(Seq(0,2)), None)
-        result should be ('left)
-      }
-    }
-    it("should accept the new commit message") {
-      new Fixture {
-        val result = graph.squash(graph.selectRange(Seq(1,2)), Some("new message"))
-        messages(result.right.value) should equal (List("4th", "new message"))
-      }
-    }
-  }
-
-  describe("delete") {
-    it("should do nothing if no commit is selected") {
-      new Fixture {
-        graph.delete(emptyRange).right.value should equal (graph.currentThread)
-      }
-    }
-    it("should create new tree without a specified commit") {
-      new Fixture {
-        val result = graph.delete(graph.selectRange(Seq(1)))
-        messages(result.right.value) should equal (List("4th", "2nd"))
+        graph.transit(Operation.DeleteOp(third))
+        messages(graph.currentThread) should equal (List("4th", "2nd"))
       }
     }
   }
