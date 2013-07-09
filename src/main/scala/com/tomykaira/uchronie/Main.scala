@@ -67,11 +67,8 @@ object Main extends SimpleSwingApplication {
     }
 
     def dispatch(op: Operation) {
-      graphConstraint.get.transit(op) match {
-        case Right(_) => graphConstraint.update(graphConstraint.get) // FIXME: fake update
-        case Left(err) =>
-          Dialog.showMessage(title = "Error", message = err)
-      }
+      graphConstraint.get.transit(op)
+      graphConstraint.update(graphConstraint.get) // FIXME: fake update
     }
 
     val commitsTable = new CommitsTable(graphConstraint)

@@ -5,6 +5,7 @@ import org.scalatest.{FunSpec, BeforeAndAfter}
 import org.scalatest.EitherValues._
 import scala.collection.JavaConverters.asScalaIteratorConverter
 import com.tomykaira.uchronie.{TargetRange, GitSpecHelper}
+import scala.language.reflectiveCalls
 
 class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -72,13 +73,11 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     it("should actually apply the result of operations") {
       val commits = (1 to 10).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
       val graph = new ArrangingGraph(repository, commits.last, commits.head)
-      val result = for {
-        t <- graph.transit(Operation.RenameOp(5, "New")).right             // 10 9 8 7 6 New 4 3 2
-        t <- graph.transit(Operation.MoveOp(TargetRange(5, 8), 0)).right         // New 4 3 2 10 9 8 7 6
-        t <- graph.transit(Operation.DeleteOp(2)).right                  // New 4 2 10 9 8 7 6
-        t <- graph.transit(Operation.SquashOp(TargetRange(1, 3), None)).right    // New 4-2-10 9 8 7 6
-        r <- graph.applyCurrentThread.right
-      } yield r
+      graph.transit(Operation.RenameOp(5, "New"))                   // 10 9 8 7 6 New 4 3 2
+      graph.transit(Operation.MoveOp(TargetRange(5, 8), 0))         // New 4 3 2 10 9 8 7 6
+      graph.transit(Operation.DeleteOp(2))                          // New 4 2 10 9 8 7 6
+      graph.transit(Operation.SquashOp(TargetRange(1, 3), None))    // New 4-2-10 9 8 7 6
+      val result = graph.applyCurrentThread
 
       val newGraph: ArrangingGraph = result.right.value
       val newCommits = newGraph.currentThread.commits

@@ -28,7 +28,7 @@ class WorkerSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
     def dispatch(g: ArrangingGraph): Future[ArrangingGraph] =
       ask(actor, g).mapTo[ArrangingGraph]
 
-    implicit val timeout = Timeout(5 seconds)
+    implicit val timeout = Timeout(5.seconds)
   }
 
   trait Fixture extends Utilities {

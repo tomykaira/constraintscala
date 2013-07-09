@@ -4,8 +4,6 @@ import org.eclipse.jgit.lib.ObjectId
 import com.tomykaira.uchronie.{TargetRange, GitRepository}
 
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val last: ObjectId) {
-  type OperationResult = Either[String, CommitThread]
-
   private lazy val startCommit: Commit.Raw = Commit.Raw(repository.toCommit(start))
   lazy val commits: List[Commit.Raw] = repository.listCommits(start, last).map(Commit.Raw)
   val transition: ThreadTransition = new ThreadTransition(CommitThread.fromCommits(commits))
@@ -24,8 +22,8 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
     transition.current
   }
 
-  def transit(op: Operation): OperationResult = {
-    transition.transit(op).left.map(_.toString)
+  def transit(op: Operation): CommitThread = {
+    transition.transit(op)
   }
 
   def rollback() {

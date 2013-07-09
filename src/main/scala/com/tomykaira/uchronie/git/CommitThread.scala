@@ -16,33 +16,26 @@ object CommitThread {
     new CommitThread {
       val commits: List[Commit] = cs.map(Commit.revCommitToRawCommit)
     }
-
-  sealed trait Error {
-    val thread: CommitThread
-    val operation: Operation
-  }
-  case class CommitNotFound(thread: CommitThread, operation: Operation, commit: Commit) extends Error
-  case class NotSequentialSlice(thread: CommitThread, operation: Operation) extends Error
 }
 
 trait CommitThread {
   val commits: List[Commit]
-  type OperationResult = Either[CommitThread.Error, CommitThread]
+  type OperationResult = CommitThread
 
   def applyOperation(op: Operation): OperationResult = op match {
     case Operation.RenameOp(index, message) =>
       if (!commits.indices.contains(index))
-        Right(this)
+        this
       else
         result(pick(commits.take(index)) ++ (Commit.Rename(commits(index), message) :: commits.drop(index + 1)))
     case Operation.DeleteOp(index) =>
       if (!commits.indices.contains(index))
-        Right(this)
+        this
       else
         result(pick(commits.take(index)) ++ commits.drop(index + 1))
     case Operation.MoveOp(indices, pos) => {
       if (indices.end >= commits.length)
-        return Right(this)
+        return this
 
       val targets = indices.list.map(commits(_))
       val lastTarget = indices.end
@@ -53,7 +46,7 @@ trait CommitThread {
     }
     case Operation.SquashOp(indices, message) => {
       if (indices.end >= commits.length)
-        return Right(this)
+        return this
 
       val firstIndex = indices.start
       val lastIndex = indices.end
@@ -65,7 +58,7 @@ trait CommitThread {
   }
 
   private def result(commits: List[Commit]) =
-    Right(CommitThread.fromCommits(commits.map(_.simplify)))
+    CommitThread.fromCommits(commits.map(_.simplify))
 
   private def pick(cs: List[Commit]) = cs map Commit.Pick
 

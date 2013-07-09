@@ -7,13 +7,11 @@ class ThreadTransition(initial: CommitThread) {
 
   val history: ListBuffer[(CommitThread, Operation)] = ListBuffer()
 
-  def transit(op: Operation): Either[CommitThread.Error, CommitThread] = {
-    val result = current.applyOperation(op)
-    result.right.foreach { next =>
-      (current, op) +=: history
-      current = next
-    }
-    result
+  def transit(op: Operation): CommitThread = {
+    val next = current.applyOperation(op)
+    (current, op) +=: history
+    current = next
+    next
   }
 
   def pop() = {
