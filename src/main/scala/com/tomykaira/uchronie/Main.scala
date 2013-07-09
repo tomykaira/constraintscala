@@ -154,7 +154,7 @@ object Main extends SimpleSwingApplication {
 
     val changedFiles = new FileList(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        graphConstraint.get(range.head) flatMap { c => new CommitDecorator(c).diff(repository) } getOrElse Nil
+        graphConstraint.get(range.start) flatMap { c => new CommitDecorator(c).diff(repository) } getOrElse Nil
       case _ => Nil
     }))
     val comment = new CommentArea(commitsTable.state.convert({
@@ -164,10 +164,10 @@ object Main extends SimpleSwingApplication {
     }))
     comment.messageFSM.onChange({
       case comment.Committing(range, message) =>
-        range.tail match {
-          case Nil => dispatch(Operation.RenameOp(range.head, message))
-          case _ => dispatch(Operation.SquashOp(range.list, Some(message)))
-        }
+        if (range.isSingleton)
+          dispatch(Operation.RenameOp(range.start, message))
+        else
+          dispatch(Operation.SquashOp(range.list, Some(message)))
       case _ =>
     })
     val changes = new TextArea() {

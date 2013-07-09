@@ -6,12 +6,12 @@ import scala.swing.event.{Key, KeyReleased}
 import java.awt.event.InputEvent
 import javax.swing.text.DefaultCaret
 
-class CommentArea(constraint: Constraint[Option[(ArrangingGraph, CommitsTable.SelectedRange)]]) extends TextArea {
+class CommentArea(constraint: Constraint[Option[(ArrangingGraph, TargetRange)]]) extends TextArea {
   sealed trait MessageState
   case class NothingSelected() extends MessageState
-  case class Selected(range: CommitsTable.SelectedRange, defaultMessage: String) extends MessageState
-  case class Editing(range: CommitsTable.SelectedRange) extends MessageState
-  case class Committing(range: CommitsTable.SelectedRange, newComment: String) extends MessageState
+  case class Selected(range: TargetRange, defaultMessage: String) extends MessageState
+  case class Editing(range: TargetRange) extends MessageState
+  case class Committing(range: TargetRange, newComment: String) extends MessageState
 
   listenTo(keys)
 
@@ -24,7 +24,7 @@ class CommentArea(constraint: Constraint[Option[(ArrangingGraph, CommitsTable.Se
 
   constraint.onChange({
     case Some((graph, range)) =>
-      messageFSM.changeStateTo(Selected(range, graph.squashMessage(range)))
+      messageFSM.changeStateTo(Selected(range, graph.squashMessage(range.nel)))
     case None => messageFSM.changeStateTo(NothingSelected())
   })
 
