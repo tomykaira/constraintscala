@@ -4,6 +4,7 @@ import org.eclipse.jgit.revwalk.RevCommit
 import scala.collection.mutable.ListBuffer
 import com.tomykaira.uchronie.{CherryPickFailure, GitRepository}
 import scalaz.NonEmptyList
+import scala.annotation.tailrec
 
 object CommitThread {
   def fromCommits(cs: List[Commit]): CommitThread =
@@ -91,14 +92,22 @@ trait CommitThread {
    *         with Raw commits on success
    */
   def perform(repository: GitRepository): Either[CherryPickFailure, CommitThread] = {
-    val newCommits = commits.foldRight[Either[CherryPickFailure, List[Commit]]](Right(List()))((current, news) =>
-      current match {
-        case commit: Commit.Operational =>
-          news.right.flatMap(list => commit.perform(repository).right.map(_ :: list))
-        case concrete: Commit.Concrete =>
-          news.right.map(concrete :: _)
-      }
-    )
-    newCommits.right.map(CommitThread.fromCommits)
+    @tailrec
+    def rebase(commits: List[Commit], result: List[Commit.Raw]):
+        Either[CherryPickFailure, List[Commit.Raw]] = commits match {
+      case Nil => Right(result)
+      case (c: Commit.Raw) :: (op: Commit.Operational) :: tail =>
+        repository.resetHard(c.raw)
+        rebase(op :: tail, c :: result)
+      case (c: Commit.Raw) :: tail =>
+        rebase(tail, c :: result)
+      case (op: Commit.Operational) :: tail =>
+        op.perform(repository) match {
+          case Left(err) => Left(err)
+          case Right(c) => rebase(tail, c :: result)
+        }
+      case _ => throw new RuntimeException("Unexpected commit")
+    }
+    rebase(commits.reverse, List()).right.map(CommitThread.fromCommits)
   }
 }

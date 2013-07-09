@@ -132,6 +132,19 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       initRepo()
     }
 
+    it("should take first not changed commits") {
+      val commits = (1 to 10).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
+      repository.resetHard(commits(9))
+      val thread = CommitThread.fromCommits(commits.dropRight(1))
+      val result = for {
+        t <- thread.applyOperation(RenameOp(commits(5), "New")).right        // 10 9 8 7 6 New 4 3 2
+        r <- t.perform(repository).right
+      } yield r
+      val newCommits = result.right.value.commits
+      newCommits(5).message should equal ("New")
+      newCommits should have length 9
+    }
+
     it("should perform operations") {
       val commits = (1 to 10).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
       repository.resetHard(commits(9))
