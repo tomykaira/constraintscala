@@ -77,13 +77,13 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     }
     it("should move commits") {
       new Fixture {
-        graph.transit(Operation.MoveOp(List(1, 2), 0))
+        graph.transit(Operation.MoveOp(TargetRange(1, 2), 0))
         messages(graph.currentThread) should equal (List("3rd", "2nd", "4th"))
       }
     }
     it("should squash 2 commits") {
       new Fixture {
-        graph.transit(Operation.SquashOp(List(1, 2), None))
+        graph.transit(Operation.SquashOp(TargetRange(1, 2), None))
         messages(graph.currentThread) should equal (List("4th", "2nd\n\n3rd"))
       }
     }
@@ -156,9 +156,9 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       val graph = new ArrangingGraph(repository, commits.last, commits.head)
       val result = for {
         t <- graph.transit(Operation.RenameOp(5, "New")).right             // 10 9 8 7 6 New 4 3 2
-        t <- graph.transit(Operation.MoveOp((5 to 8).toList, 0)).right         // New 4 3 2 10 9 8 7 6
+        t <- graph.transit(Operation.MoveOp(TargetRange(5, 8), 0)).right         // New 4 3 2 10 9 8 7 6
         t <- graph.transit(Operation.DeleteOp(2)).right                  // New 4 2 10 9 8 7 6
-        t <- graph.transit(Operation.SquashOp((1 to 3).toList, None)).right    // New 4-2-10 9 8 7 6
+        t <- graph.transit(Operation.SquashOp(TargetRange(1, 3), None)).right    // New 4-2-10 9 8 7 6
         r <- graph.applyCurrentThread.right
       } yield r
 

@@ -1,12 +1,11 @@
 package com.tomykaira.uchronie.git
 
-import com.tomykaira.uchronie.GitSpecHelper
+import com.tomykaira.uchronie.{TargetRange, GitSpecHelper}
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
 import com.tomykaira.uchronie.git.Commit._
 import com.tomykaira.uchronie.git.Operation._
 import org.scalatest.EitherValues._
-import scalaz.NonEmptyList
 
 class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   lazy val commits = (1 to 10).map(DummyCommit).reverse.toList
@@ -45,7 +44,7 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       }
     }
     describe("move") {
-      lazy val result = thread.applyOperation(MoveOp(List(4,5,6), 0))
+      lazy val result = thread.applyOperation(MoveOp(TargetRange(4, 6), 0))
       it("should move 3 commits to top") {
         val first = result.right.value.commits(0)
         val third = result.right.value.commits(2)
@@ -63,12 +62,12 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         eighth should equal (commits(7))
       }
       it("should ignore operation if one of commits does not found") {
-        val result = thread.applyOperation(MoveOp(List(-1, 4, 5, 6), 0))
+        val result = thread.applyOperation(MoveOp(TargetRange(4, 100), 0))
         result should equal (Right(thread))
       }
     }
     describe("squash") {
-      lazy val result = thread.applyOperation(SquashOp(List(4, 5, 6), None))
+      lazy val result = thread.applyOperation(SquashOp(TargetRange(4, 6), None))
       it("should squash commits there") {
         val fifth = result.right.value.commits(4)
         fifth.asInstanceOf[Commit.Squash].previous.list should equal (commits.slice(4,7))
@@ -78,7 +77,7 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         fifth.asInstanceOf[Commit.Squash].message should equal ("Dummy 4\n\nDummy 5\n\nDummy 6")
       }
       it("should set message from Operation") {
-        val result = thread.applyOperation(SquashOp(List(4, 5, 6), Some("New Message")))
+        val result = thread.applyOperation(SquashOp(TargetRange(4, 6), Some("New Message")))
         val fifth = result.right.value.commits(4)
         fifth.asInstanceOf[Commit.Squash].message should equal ("New Message")
       }
@@ -92,10 +91,6 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       it("should keep 7 to 9") {
         val eighth = result.right.value.commits(5)
         eighth should equal (commits(7))
-      }
-      it("should NOT reject if commits are not sequential") {
-        val result = thread.applyOperation(SquashOp(List(2, 4, 5, 6), Some("New Message")))
-        result should be ('right)
       }
     }
     describe("delete") {
@@ -150,9 +145,9 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       val thread = CommitThread.fromCommits(commits.dropRight(1))
       val result = for {
         t <- thread.applyOperation(RenameOp(5, "New")).right        // 10 9 8 7 6 New 4 3 2
-        t <- t.applyOperation(MoveOp((5 to 8).toList, 0)).right         // New 4 3 2 10 9 8 7 6
+        t <- t.applyOperation(MoveOp(TargetRange(5, 8), 0)).right         // New 4 3 2 10 9 8 7 6
         t <- t.applyOperation(DeleteOp(2)).right                  // New 4 2 10 9 8 7 6
-        t <- t.applyOperation(SquashOp((1 to 3).toList, None)).right    // New 4-2-10 9 8 7 6
+        t <- t.applyOperation(SquashOp(TargetRange(1, 3), None)).right    // New 4-2-10 9 8 7 6
         r <- t.perform(repository).right
       } yield r
       result.right.value.commits.map(_.message) should equal (List("New", "10\n\n2\n\n4", "9", "8", "7", "6"))

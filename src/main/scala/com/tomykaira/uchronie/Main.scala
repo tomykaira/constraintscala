@@ -148,7 +148,7 @@ object Main extends SimpleSwingApplication {
     commitsTable.state.onChange({
       case commitsTable.Dropped(range, at) =>
         commitsTable.state.changeStateTo(commitsTable.RowsSelected(range))
-        dispatch(Operation.MoveOp(range.list, at))
+        dispatch(Operation.MoveOp(range, at))
       case _ =>
     })
 
@@ -167,7 +167,7 @@ object Main extends SimpleSwingApplication {
         if (range.isSingleton)
           dispatch(Operation.RenameOp(range.start, message))
         else
-          dispatch(Operation.SquashOp(range.list, Some(message)))
+          dispatch(Operation.SquashOp(range, Some(message)))
       case _ =>
     })
     val changes = new TextArea() {
@@ -197,7 +197,7 @@ object Main extends SimpleSwingApplication {
                     case comment.Editing(_) => Some(comment.text)
                     case _ => None
                   }
-                  dispatch(Operation.SquashOp(range.list, newMessage))
+                  dispatch(Operation.SquashOp(range, newMessage))
                 case _ =>
               }
           }

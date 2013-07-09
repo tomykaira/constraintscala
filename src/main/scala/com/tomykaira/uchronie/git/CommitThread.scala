@@ -41,23 +41,23 @@ trait CommitThread {
       else
         result(pick(commits.take(index)) ++ commits.drop(index + 1))
     case Operation.MoveOp(indices, pos) => {
-      if (indices.isEmpty || indices.diff(commits.indices).nonEmpty)
+      if (indices.end >= commits.length)
         return Right(this)
 
-      val targets = indices.map(commits(_))
-      val lastTarget = indices.max
+      val targets = indices.list.map(commits(_))
+      val lastTarget = indices.end
       val picked = pick(commits.take(lastTarget)) ++ commits.drop(lastTarget)
       result(picked.take(pos).filterNot(p => targets.exists(t => p derived t)) ++
         pick(targets) ++
         picked.drop(pos).filterNot(p => targets.exists(t => p derived t)))
     }
     case Operation.SquashOp(indices, message) => {
-      if (indices.isEmpty || indices.diff(commits.indices).nonEmpty)
+      if (indices.end >= commits.length)
         return Right(this)
 
-      val firstIndex = indices.head
-      val lastIndex = indices.last
-      val targets = NonEmptyList.nel(indices.head, indices.tail).map(commits(_))
+      val firstIndex = indices.start
+      val lastIndex = indices.end
+      val targets = indices.nel.map(commits(_))
       val newMessage = message.getOrElse(targets.list.reverse.map(_.message.stripLineEnd).mkString("\n\n"))
       result(pick(commits.take(firstIndex)) ++
         (Commit.Squash(targets, newMessage) :: commits.drop(lastIndex + 1)))
