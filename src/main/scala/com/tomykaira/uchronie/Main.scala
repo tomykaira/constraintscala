@@ -30,11 +30,40 @@ object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
     title = "Uchronie"
 
-    val graph = new ArrangingGraph(repository, start, end)
-    val graphConstraint = new StaticConstraint[ArrangingGraph](graph)
+    val graphConstraint = new StaticConstraint[ArrangingGraph](new ArrangingGraph(repository, start, end))
 
     val processingFSM = new FSM[ProcessingState] {
       state = Stopped()
+    }
+
+    val onApply = { () =>
+      implicit val timeout = Timeout(60 seconds)
+
+      processingFSM.changeStateTo(Working())
+
+      val future = ask(actor, graphConstraint.get).mapTo[ArrangingGraph]
+      future.onComplete {
+        case_ =>
+          processingFSM.changeStateTo(Stopped())
+      }
+      future.onSuccess {
+        case g => graphConstraint.update(g)
+      }
+      future.onFailure {
+        case err => Dialog.showMessage(title = "Error", message = err.getMessage)
+      }
+    }
+
+    val performingThread = new StaticConstraint[Option[CommitThread]](None)
+
+    performingThread.onChange {
+      case None => processingFSM.changeStateTo(Stopped())
+      case Some(_) =>
+    }
+
+    performingThread.onChange {
+      case Some(thread) =>
+      case None =>
     }
 
     def dispatch(c: Command) {
@@ -217,7 +246,7 @@ object Main extends SimpleSwingApplication {
       })
 
     contents = new BorderPanel() {
-      add(new OperationView(processingFSM, graphConstraint), BorderPanel.Position.North)
+      add(new OperationView(processingFSM, graphConstraint, onApply), BorderPanel.Position.North)
       add(gitView, BorderPanel.Position.Center)
     }
 

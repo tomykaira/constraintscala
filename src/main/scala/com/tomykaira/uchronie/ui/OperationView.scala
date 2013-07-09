@@ -6,9 +6,11 @@ import scala.swing._
 import java.awt.Dimension
 import com.tomykaira.uchronie.ArrangingGraph
 import com.tomykaira.uchronie.git.Operation
-import scala.swing.ListView.Renderer
+import scala.swing.event.ButtonClicked
 
-class OperationView(processingFSM: FSM[ProcessingState], graph: StaticConstraint[ArrangingGraph]) extends BorderPanel {
+class OperationView(processingFSM: FSM[ProcessingState],
+    graph: StaticConstraint[ArrangingGraph],
+    onApply: () => Any) extends BorderPanel {
   val list = new ScrollPane() {
     contents = new ListView[Operation] {
       graph.onChange { g =>
@@ -23,6 +25,10 @@ class OperationView(processingFSM: FSM[ProcessingState], graph: StaticConstraint
     preferredSize = new Dimension(200, 50)
     maximumSize = preferredSize
     minimumSize = preferredSize
+    tooltip = "Apply stacked changes to the repository"
+    reactions += {
+      case e: ButtonClicked => onApply()
+    }
   }
 
   val progressBar = new ProgressBar {
