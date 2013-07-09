@@ -25,7 +25,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     def messages(g: { val commits: List[Commit] }): List[String] = g.commits.map(_.message)
 
     def commitsInRange(h: Int, t: Int*) =
-      graph.selectRange(NonEmptyList.nel(h, t.toList)).commits.list
+      graph.rowsToCommits(NonEmptyList.nel(h, t.toList)).list
   }
 
   trait Fixture extends GraphUtilities {
@@ -42,30 +42,6 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       createCommit("A", "2nd", "2nd"),
       createCommit("A", "3rd", "3rd"),
       createCommit("A", "4th", "4th"))
-  }
-
-  describe("selectRange") {
-    it("should refer original graph") {
-      new Fixture {
-        val range = graph.selectRange(NonEmptyList(1))
-        range.graph should equal (graph)
-      }
-    }
-    it("should have 1 commit in range") {
-      new Fixture {
-        commitsInRange(0) should equal (List(commits.last))
-      }
-    }
-    it("should have 2 commits in range") {
-      new Fixture {
-        commitsInRange(0, 1) should equal (List(fourth, third))
-      }
-    }
-    it("should have 2 commits not in sequence") {
-      new Fixture {
-        commitsInRange(0, 2) should equal (List(fourth, second))
-      }
-    }
   }
 
   describe("transit") {

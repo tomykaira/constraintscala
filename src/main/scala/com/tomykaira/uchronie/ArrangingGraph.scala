@@ -44,8 +44,6 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
   def rowsToCommits(rows: NonEmptyList[Int]): NonEmptyList[Commit] =
     rows.map(i => currentThread.commits(i))
 
-  def contains(range: GraphRange): Boolean = range.graph == this
-
   // TODO: accept only Raw
   def startEdit(commit: Commit): Option[GraphRange] = {
     val orphans = commits.takeWhile(_ != commit)
@@ -80,13 +78,6 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
       commits(index+1)
     else
       startCommit
-  }
-
-  @tailrec
-  private[this] def skipCommonRoot[A](xs: List[A], ys: List[A], common: A): (A, List[A]) = (xs, ys) match {
-    case (Nil, _) => (common, Nil)
-    case (x::xss, Nil) => (common, x::xss)
-    case (x::xss, y::yss) => if (x == y) skipCommonRoot(xss, yss, x) else (common, x::xss)
   }
 
   def applyCurrentThread: Either[String, ArrangingGraph] = {
