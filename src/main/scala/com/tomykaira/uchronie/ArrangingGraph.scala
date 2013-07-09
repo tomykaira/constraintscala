@@ -2,14 +2,15 @@ package com.tomykaira.uchronie
 
 import org.eclipse.jgit.lib.{Constants, ObjectId}
 import scala.annotation.tailrec
-import com.tomykaira.uchronie.git.{Operation, CommitThread, ThreadTransition, Commit}
+import com.tomykaira.uchronie.git._
 import com.tomykaira.uchronie.git.Commit.Raw
 import scalaz.NonEmptyList
+import scala.Some
 
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val last: ObjectId) {
   type OperationResult = Either[String, CommitThread]
 
-  private lazy val startCommit: Commit = repository.toCommit(start)
+  private lazy val startCommit: Commit.Raw = Raw(repository.toCommit(start))
   lazy val commits: List[Commit.Raw] = repository.listCommits(start, last).map(Commit.Raw)
   val transition: ThreadTransition = new ThreadTransition(CommitThread.fromCommits(commits))
 
@@ -35,50 +36,11 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
     repository.resetHard(last)
   }
 
-  def selectRange(rows: NonEmptyList[Int]): GraphRange =
-    new GraphRange(this, rowsToCommits(rows))
-
   def squashMessage(rows: NonEmptyList[Int]): String =
     rowsToCommits(rows).list.reverse.map(_.message.stripLineEnd).mkString("\n\n")
 
   def rowsToCommits(rows: NonEmptyList[Int]): NonEmptyList[Commit] =
     rows.map(i => currentThread.commits(i))
-
-  // TODO: accept only Raw
-  def startEdit(commit: Commit): Option[GraphRange] = {
-    val orphans = commits.takeWhile(_ != commit)
-    repository.resetHard(commit.asInstanceOf[Commit.Raw].raw)
-    repository.resetSoft(parent(commit).asInstanceOf[Commit.Raw].raw)
-    orphans match {
-      case Nil => None
-      case h :: t => Some(new GraphRange(this, NonEmptyList.nel(h, t)))
-    }
-  }
-
-  def applyInteractively(range: GraphRange): Either[GraphRange, ArrangingGraph] = {
-    if (!repository.isClean)
-      return Left(range)
-    @tailrec
-    def loop(commits: List[Commit]): Either[GraphRange, ArrangingGraph] = commits match {
-      case Nil => Right(new ArrangingGraph(repository, start, repository.resolve(Constants.HEAD).get))
-      case x :: xs =>
-        repository.cherryPick(x.asInstanceOf[Commit.Raw].raw) match {
-          case Left(err) => Left(new GraphRange(this, NonEmptyList.nel(xs.head, xs.tail))) // TODO: unsafe
-          case Right(_) => loop(xs)
-        }
-    }
-    loop(range.commits.list.reverse)
-  }
-
-  // parent in the target graph
-  private def parent(commit: Commit): Commit = {
-    val commits = currentThread.commits
-    val index = commits.indexOf(commit)
-    if(index != -1 && commits.indices.contains(index + 1))
-      commits(index+1)
-    else
-      startCommit
-  }
 
   def applyCurrentThread: Either[String, ArrangingGraph] = {
     repository.resetHard(start)
@@ -89,18 +51,16 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
           case None =>
             Left("Unsupported operation: All commits are deleted")
           case Some(commit) =>
-            Right(nextGraph(commit.asInstanceOf[Commit.Raw]))
+            Right(next(commit.asInstanceOf[Commit.Raw]))
         }
     }
   }
 
-  private def nextGraph(newLast: ObjectId) = new ArrangingGraph(repository, start, newLast)
+  def next(newLast: ObjectId) = new ArrangingGraph(repository, start, newLast)
 
-}
-
-class GraphRange(val graph: ArrangingGraph, val commits: NonEmptyList[Commit]) {
-  def first: Commit = {
-    commits.head
+  def startEdit(index: TargetRange.Index): IncrementalEditor.Going = {
+    val range = commits.slice(0, index + 1).reverse
+    val parent = if (index == 0) startCommit else commits(index - 1)
+    IncrementalEditor.startEdit(repository, parent, range)
   }
-
 }

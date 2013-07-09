@@ -71,61 +71,6 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     }
   }
 
-  describe("startEdit") {
-    it("should checkout the parent of specified commit") {
-      new Fixture {
-        graph.startEdit(commits(2))
-        repository.resolve(Constants.HEAD).get should equal (commits(1).getId)
-      }
-    }
-    it("should have files indexed") {
-      new Fixture {
-        graph.startEdit(commits(2))
-        repository.isClean should be (false)
-      }
-    }
-    it("should return orphan commits") {
-      new Fixture {
-        val orphans = graph.startEdit(commits(2))
-        orphans.get.commits.list should equal (List(commits(3)))
-      }
-    }
-  }
-
-  describe("applyInteractively") {
-    it("should return new ArrangingGraph if success") {
-      new Fixture {
-        // Instantiate graph before run
-        val range = graph.selectRange(NonEmptyList(0))
-        repository.resetHard(second)
-        val result = graph.applyInteractively(range)
-        messages(result.right.value) should equal (List("4th", "2nd"))
-      }
-    }
-    it("should return succeeding commits if failure") {
-      new ConflictFixture {
-        repository.resetHard(first)
-        val result = graph.applyInteractively(graph.selectRange(NonEmptyList(0, 1)))
-        result.left.value.commits.list should equal (List(commits.last))
-      }
-    }
-    it("should keep repository dirty") {
-      new ConflictFixture {
-        repository.resetHard(first)
-        graph.applyInteractively(graph.selectRange(NonEmptyList(0,1)))
-        repository.isClean should be (false)
-      }
-    }
-    it("should return given range if already dirty") {
-      new Fixture {
-        val range = graph.selectRange(NonEmptyList(0))
-        repository.resetSoft(first)
-        val result = graph.applyInteractively(range)
-        result.left.value should equal (range)
-      }
-    }
-  }
-
   describe("applyCurrentThread") {
     it("should actually apply the result of operations") {
       val commits = (1 to 10).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList

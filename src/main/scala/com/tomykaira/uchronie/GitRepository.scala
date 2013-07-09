@@ -12,6 +12,8 @@ import org.eclipse.jgit.diff.{DiffFormatter, DiffEntry}
 
 case class CherryPickFailure(original: RevCommit)
 
+class NoHeadException extends RuntimeException("no HEAD revision")
+
 class GitRepository(rootPath: File) {
   val repository = new FileRepositoryBuilder().
     setGitDir(rootPath).
@@ -54,6 +56,12 @@ class GitRepository(rootPath: File) {
   def toCommit(id: ObjectId): RevCommit = {
     new RevWalk(repository).parseCommit(id)
   }
+
+  def head: RevCommit =
+    resolve(Constants.HEAD) match {
+      case None => throw new NoHeadException
+      case Some(rev) => toCommit(rev)
+    }
 
   def git: Git = new Git(repository)
 

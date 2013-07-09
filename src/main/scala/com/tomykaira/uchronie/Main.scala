@@ -80,15 +80,6 @@ object Main extends SimpleSwingApplication {
       case Stopped() => commitsTable.enabled = true
     }
 
-    sealed trait EditState
-    case class NotEditing() extends EditState
-    case class EditCommit(commit: RevCommit) extends EditState
-    case class EditDone(commit: RevCommit) extends EditState
-    case class Rebasing(range: GraphRange) extends EditState
-    case class RebaseFailed(range: GraphRange) extends EditState
-    val editFSM = new FSM[EditState] {
-      state = NotEditing()
-    }
     def openEditWaitingDialog: Dialog.Result.Value =
       Dialog.showOptions(
         title = "Edit commit",
@@ -96,6 +87,7 @@ object Main extends SimpleSwingApplication {
         entries = Seq("Done", "Abort"),
         initial = 0
       )
+
     def openConflictFixWaitingDialog: Dialog.Result.Value =
       Dialog.showOptions(
         title = "Edit commit",
@@ -104,46 +96,45 @@ object Main extends SimpleSwingApplication {
         initial = 0
       )
 
-    editFSM.onChange {
-      case _: Rebasing => processingFSM.changeStateTo(Working())
-      case _ => processingFSM.changeStateTo(Stopped())
-    }
+    // TODO: move somewhere
+    val onEdit = { range: TargetRange =>
+      val currentGraph = graphConstraint.get
 
-    @tailrec
-    def pickInteractively(orphans: GraphRange) {
-      editFSM.changeStateTo(Rebasing(orphans))
-      orphans.graph.applyInteractively(orphans) match {
-        case Left(rest) =>
-          editFSM.changeState({ case _: Rebasing => RebaseFailed(rest) })
-          openConflictFixWaitingDialog match {
-            case Dialog.Result.Yes =>
-              pickInteractively(rest)
-            case _ =>
-              orphans.graph.rollback()
-              editFSM.changeStateTo(NotEditing())
+      def abort() {
+        currentGraph.rollback()
+      }
+
+      def processing[A](f: => A): A = {
+        processingFSM.changeStateTo(Working())
+        val result = f
+        processingFSM.changeStateTo(Stopped())
+        result
+      }
+
+      @tailrec
+      def loop(next: IncrementalEditor): Unit = next match {
+        case done: IncrementalEditor.Done =>
+          graphConstraint.update(currentGraph.next(done.head))
+        case going: IncrementalEditor.Going =>
+          processing { going.continue } match {
+            case done: IncrementalEditor.Done => done
+            case rest: IncrementalEditor.Going =>
+              openConflictFixWaitingDialog match {
+                case Dialog.Result.Yes =>
+                  loop(rest)
+                case Dialog.Result.No =>
+                  abort()
+              }
           }
-        case Right(newGraph) =>
-          editFSM.changeState { case _: Rebasing => NotEditing() }
-          graphConstraint.update(newGraph)
+      }
+
+      val going = processing { currentGraph.startEdit(range.end) }
+
+      openEditWaitingDialog match {
+        case Dialog.Result.Yes => loop(going)
+        case Dialog.Result.No => abort()
       }
     }
-
-    editFSM.onChange({
-      case EditCommit(commit) =>
-        val currentGraph = graphConstraint.get
-        val orphans = currentGraph.startEdit(commit)
-        openEditWaitingDialog match {
-          case Dialog.Result.Yes =>
-            orphans match {
-              case Some(range) => pickInteractively(range)
-              case None => throw new RuntimeException("TODO") // TODO
-            }
-          case _ =>
-            currentGraph.rollback()
-            editFSM.changeStateTo(NotEditing())
-        }
-      case _ =>
-    })
 
     commitsTable.state.onChange({
       case commitsTable.Dropped(range, at) =>

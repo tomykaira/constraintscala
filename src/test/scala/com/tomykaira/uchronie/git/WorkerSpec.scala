@@ -1,9 +1,8 @@
 package com.tomykaira.uchronie.git
 
-import com.tomykaira.uchronie.{ArrangingGraph, GraphRange, GitSpecHelper}
+import com.tomykaira.uchronie.{ArrangingGraph, GitSpecHelper}
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
-import org.eclipse.jgit.revwalk.RevCommit
 import akka.actor.{Props, ActorSystem}
 import org.scalatest.concurrent.AsyncAssertions.Waiter
 import akka.pattern.ask
