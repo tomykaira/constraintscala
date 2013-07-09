@@ -60,7 +60,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
 
   def startEdit(index: TargetRange.Index): IncrementalEditor.Going = {
     val range = commits.slice(0, index + 1).reverse
-    val parent = if (index == 0) startCommit else commits(index - 1)
+    val parent = if (index + 1 >= commits.length) startCommit else commits(index + 1)
     IncrementalEditor.startEdit(repository, parent, range)
   }
 }

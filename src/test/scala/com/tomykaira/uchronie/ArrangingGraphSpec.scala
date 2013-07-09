@@ -91,4 +91,14 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       revCommits.map(_.getFullMessage) should equal (List("New", "10\n\n2\n\n4", "9", "8", "7", "6"))
     }
   }
+
+  describe("startEdit") {
+    it("should reset to specified commit") {
+      val commits = (1 to 5).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
+      val graph = new ArrangingGraph(repository, commits.last, commits.head)
+      val result = graph.startEdit(2)    // 5 4 _3_ 2 (1)
+      repository.head should equal (commits(3).raw)
+      result.commits.head should equal (commits(1))
+    }
+  }
 }
