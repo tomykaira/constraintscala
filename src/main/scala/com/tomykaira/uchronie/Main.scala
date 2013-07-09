@@ -121,7 +121,7 @@ object Main extends SimpleSwingApplication {
     @tailrec
     def pickInteractively(orphans: GraphRange) {
       editFSM.changeStateTo(Rebasing(orphans))
-      orphans.applyInteractively match {
+      orphans.graph.applyInteractively(orphans) match {
         case Left(rest) =>
           editFSM.changeState({ case _: Rebasing => RebaseFailed(rest) })
           openConflictFixWaitingDialog match {

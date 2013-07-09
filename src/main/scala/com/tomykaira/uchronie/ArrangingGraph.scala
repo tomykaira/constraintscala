@@ -124,17 +124,6 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
 }
 
 class GraphRange(val graph: ArrangingGraph, val commits: List[Commit]) {
-  def squash(newMessage: Option[String]): graph.OperationResult = {
-    graph squash(this, newMessage)
-  }
-
-  def delete(): graph.OperationResult = {
-    graph.delete(this)
-  }
-
-  def applyInteractively: Either[GraphRange, ArrangingGraph] =
-    graph.applyInteractively(this)
-
   def isEmpty: Boolean = commits.isEmpty
 
   def first: Option[Commit] = {

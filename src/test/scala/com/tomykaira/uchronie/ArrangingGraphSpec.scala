@@ -128,35 +128,35 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("squash") {
     it("should do nothing if no commit is selected") {
       new Fixture {
-        emptyRange.squash(None).right.value should equal (graph.currentThread)
+        graph.squash(emptyRange, None).right.value should equal (graph.currentThread)
       }
     }
     it("should do nothing if 1 commit is selected") {
       new Fixture {
-        graph.selectRange(Seq(2)).squash(None).right.value should equal (graph.currentThread)
+        graph.squash(graph.selectRange(Seq(2)), None).right.value should equal (graph.currentThread)
       }
     }
     it("should squash 2 commits into one") {
       new Fixture {
-        val result = graph.selectRange(Seq(1,2)).squash(None)
+        val result = graph.squash(graph.selectRange(Seq(1,2)), None)
         messages(result.right.value) should equal (List("4th", "2nd\n\n3rd"))
       }
     }
     it("should squash 3 commits into one") {
       new Fixture {
-        val result = graph.selectRange(Seq(0,1,2)).squash(None)
+        val result = graph.squash(graph.selectRange(Seq(0,1,2)), None)
         messages(result.right.value) should equal (List("2nd\n\n3rd\n\n4th"))
       }
     }
     it("should fail without operation if range is not sequential") {
       new Fixture {
-        val result = graph.selectRange(Seq(0,2)).squash(None)
+        val result = graph.squash(graph.selectRange(Seq(0,2)), None)
         result should be ('left)
       }
     }
     it("should accept the new commit message") {
       new Fixture {
-        val result = graph.selectRange(Seq(1,2)).squash(Some("new message"))
+        val result = graph.squash(graph.selectRange(Seq(1,2)), Some("new message"))
         messages(result.right.value) should equal (List("4th", "new message"))
       }
     }
@@ -165,12 +165,12 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("delete") {
     it("should do nothing if no commit is selected") {
       new Fixture {
-        emptyRange.delete().right.value should equal (graph.currentThread)
+        graph.delete(emptyRange).right.value should equal (graph.currentThread)
       }
     }
     it("should create new tree without a specified commit") {
       new Fixture {
-        val result = graph.selectRange(Seq(1)).delete()
+        val result = graph.delete(graph.selectRange(Seq(1)))
         messages(result.right.value) should equal (List("4th", "2nd"))
       }
     }
