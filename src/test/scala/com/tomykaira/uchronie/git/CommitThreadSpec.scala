@@ -68,7 +68,6 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       it("should pick after commits when moving downward") {
         // 10 9 8 7 3 _6 5 4_ 2 1
         val result = thread.applyOperation(MoveOp(TargetRange(4, 6), 8))
-        println(result.commits)
         assert(result.commits.slice(0, 6).forall(_.isInstanceOf[Pick]))
         assert(result.commits.slice(6, 8).forall(_.isInstanceOf[Pick]))
         assert(result.commits.slice(8, 10).forall(_.isInstanceOf[DummyCommit]))
