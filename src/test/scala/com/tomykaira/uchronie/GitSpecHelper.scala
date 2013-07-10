@@ -3,6 +3,7 @@ package com.tomykaira.uchronie
 import java.io.{PrintWriter, File}
 import org.eclipse.jgit.api.Git
 import com.tomykaira.uchronie.git.Commit
+import org.eclipse.jgit.revwalk.RevCommit
 
 trait GitSpecHelper {
   case class GitSpecHelperException(message: String) extends RuntimeException
@@ -70,4 +71,13 @@ trait GitSpecHelper {
 
   def secondCommit =
     createCommit("test2", "Hello World", "Second Commit")
+
+  def dummyCommit(id: Int): Commit.Raw = {
+    val raw = s"""tree 9788669ad918b6fcce64af8882fc9a81cb6aba67
+author A U. Thor <a_u_thor@example.com> 1218123387 +0700
+committer C O. Miter <c@example.com> 1218123390 -0500
+
+Dummy $id"""
+    Commit.Raw(RevCommit.parse(raw.getBytes("UTF-8")))
+  }
 }

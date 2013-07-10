@@ -39,7 +39,6 @@ object Commit {
     def rawPreviousCommit(commit: Commit): Raw = commit match {
       case r: Raw => r
       case _: Operational => throw new NotSimplifiedException
-      case _: DummyCommit => throw new DummyCommitException
     }
 
     protected def pickPrevious(commit: Commit, repository: GitRepository): Either[CherryPickFailure, Raw] =
@@ -114,15 +113,6 @@ object Commit {
     val message = raw.getFullMessage
 
     val id = raw.getId
-
-    val shortId = id.abbreviate(7).name()
-  }
-
-  // for testing
-  case class DummyCommit(i: Int) extends Concrete {
-    val message = s"Dummy $i"
-
-    val id = ObjectId.fromRaw(Array(i, 0, 0, 0, 0))
 
     val shortId = id.abbreviate(7).name()
   }

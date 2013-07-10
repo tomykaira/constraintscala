@@ -8,9 +8,9 @@ import com.tomykaira.uchronie.git.Operation._
 import org.scalatest.EitherValues._
 
 class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
-  lazy val commits = (1 to 10).map(DummyCommit).reverse.toList
+  lazy val commits = (1 to 10).map(dummyCommit).reverse.toList
   lazy val thread = CommitThread.fromCommits(commits)
-  lazy val notFound = DummyCommit(-1)
+  lazy val notFound = dummyCommit(-1)
 
   describe("Initialize CommitThread from dummy commits") {
     it("should return Thread with commits") {
@@ -70,7 +70,7 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         val result = thread.applyOperation(MoveOp(TargetRange(4, 6), 8))
         assert(result.commits.slice(0, 6).forall(_.isInstanceOf[Pick]))
         assert(result.commits.slice(6, 8).forall(_.isInstanceOf[Pick]))
-        assert(result.commits.slice(8, 10).forall(_.isInstanceOf[DummyCommit]))
+        assert(result.commits.slice(8, 10).forall(_.isInstanceOf[Raw]))
       }
     }
     describe("squash") {
