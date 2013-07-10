@@ -35,6 +35,8 @@ trait CommitThread {
     case Operation.MoveOp(indices, pos) => {
       if (indices.end >= commits.length)
         return this
+      if (indices.start <= pos && indices.end + 1 >= pos)
+        return this
 
       val targets = indices.list.map(commits(_))
       val firstModified = pos.max(indices.end + 1)

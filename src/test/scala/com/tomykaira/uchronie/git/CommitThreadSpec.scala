@@ -72,6 +72,10 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         assert(result.commits.slice(6, 8).forall(_.isInstanceOf[Pick]))
         assert(result.commits.slice(8, 10).forall(_.isInstanceOf[Raw]))
       }
+      it("should ignore if all commits are in the same position") {
+        val result = thread.applyOperation(MoveOp(TargetRange(4, 7), 6))
+        result should equal (thread)
+      }
     }
     describe("squash") {
       lazy val result = thread.applyOperation(SquashOp(TargetRange(4, 6), None))
