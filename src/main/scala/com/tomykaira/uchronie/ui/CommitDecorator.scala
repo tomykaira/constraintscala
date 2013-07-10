@@ -1,20 +1,27 @@
 package com.tomykaira.uchronie.ui
 
 import com.tomykaira.uchronie.git.Commit
-import org.eclipse.jgit.diff.DiffEntry
 import com.tomykaira.uchronie.GitRepository
 
 case class CommitDecorator(commit: Commit) {
-  def tableRow: Array[AnyRef] =
-    Array(commit.shortId, commit.message.split("\n").head)
+  val oneLineMessage: String = {
+    val message = commit.message
+    message.take(message.indexOf('\n'))
+  }
 
-  def diff(repository: GitRepository): List[DiffDecorator] = List()
+  def tableRow: Array[AnyRef] = Array(commit.shortId, oneLineMessage)
 
-    /*commit match {
-    case Commit.Raw(raw) => repository.diff(raw)
-    case Commit.Pick(Commit.Raw(raw)) => repository.diff(raw)
-    case Commit.Rename(Commit.Raw(raw), _) => Some(repository.diff(raw))
-    case _ => None
-  }*/
+  def shortDescription: String = commit.shortId + " " + oneLineMessage
 
+  def diff(repository: GitRepository): List[DiffDecorator] = commit match {
+    case raw: Commit.Raw => oneFile(repository, raw)
+    case Commit.Pick(raw) => oneFile(repository, raw)
+    case Commit.Rename(raw, _) => oneFile(repository, raw)
+    case sq: Commit.Squash => sq.previous flatMap { r => oneFile(repository, r) }
+  }
+
+  private def oneFile(repository: GitRepository, raw: Commit.Raw) = {
+    val diffs = repository.diff(raw.raw)
+    DiffDecorator.All(new CommitDecorator(raw).shortDescription, diffs) :: (diffs map DiffDecorator.Each)
+  }
 }

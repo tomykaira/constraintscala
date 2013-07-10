@@ -10,18 +10,15 @@ class DiffDecoratorSpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
   }
 
   describe("All") {
-    it("should named All") {
-      DiffDecorator.All(None, List()).prefixedName should equal ("All")
-    }
     it("should take prefix") {
-      DiffDecorator.All(Some("1295235"), List()).prefixedName should equal ("1295235: All")
+      DiffDecorator.All("1295235", List()).name should equal ("ALL of 1295235")
     }
     it("should include diff of all files") {
       firstCommit
       addFile("test", "goodbye")
       addFile("test2", "Hello2")
       val commit = doCommit("Two files")
-      val diff = DiffDecorator.All(None, repository.diff(commit)).fullDiff(repository)
+      val diff = DiffDecorator.All("", repository.diff(commit)).fullDiff(repository)
       diff should include ("a/test")
       diff should include ("b/test")
       diff should include ("b/test2")
