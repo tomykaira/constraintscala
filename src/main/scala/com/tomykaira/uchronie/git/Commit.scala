@@ -11,16 +11,11 @@ sealed trait Commit {
   val message: String
   val shortId: String
   val id: ObjectId
-  def simplify: Commit
 }
 object Commit {
   implicit def revCommitToRawCommit(rev: RevCommit): Commit = Raw(rev)
 
   implicit def rawCommitToRevCommit(raw: Commit.Raw): RevCommit = raw.raw
-
-  class NotSimplifiedException extends RuntimeException("Defeat: maybe simplify call is forgot")
-
-  class DummyCommitException extends RuntimeException("Defeat: DummyCommit is for testing")
 
   sealed trait Operational extends Commit {
     type PerformanceResult = Either[CherryPickFailure, Raw]
@@ -31,77 +26,69 @@ object Commit {
 
     val shortId = id.abbreviate(7).name()
 
-    def rawPreviousCommit(commit: Commit): Raw = commit match {
-      case r: Raw => r
-      case _: Operational => throw new NotSimplifiedException
-    }
-
-    protected def pickPrevious(commit: Commit, repository: GitRepository): Either[CherryPickFailure, Raw] =
-      pick(rawPreviousCommit(commit), repository)
-
     protected def pick(raw: Commit.Raw, repository: GitRepository): Either[CherryPickFailure, Raw] =
       repository.cherryPick(raw).right.map(Raw)
   }
 
-  case class Pick(previous: Commit) extends Operational {
+  case class Pick(previous: Raw) extends Operational {
     def perform(repository: GitRepository) =
-      pickPrevious(previous, repository)
+      pick(previous, repository)
 
     def derived(commit: Commit) = this == commit || (previous derived commit)
 
     val message: String = previous.message
-
-    def simplify =
-      previous.simplify match {
-        case it: Operational => it
-        case it: Raw => Pick(it)
-      }
   }
 
-  case class Rename(previous: Commit, message: String) extends Operational {
+  object Pick {
+    def apply(previous: Commit): Operational = previous match {
+      case it: Operational => it
+      case it: Raw => Pick(it)
+    }
+  }
+
+  case class Rename(previous: Raw, message: String) extends Operational {
     def perform(repository: GitRepository) =
       for {
-        _ <- pickPrevious(previous, repository).right
+        _ <- pick(previous, repository).right
         amended <- Right(repository.amendMessage(message)).right
       } yield Raw(amended)
 
     def derived(commit: Commit) = this == commit || (previous derived commit)
-
-    def simplify =
-      previous.simplify match {
-        case Pick(c) => Rename(c, message)
-        case Rename(c, _) => Rename(c, message)
-        case Squash(cs, _) => Squash(cs, message)
-        case it: Raw => Rename(it, message)
-      }
   }
 
-  case class Squash(previous: NonEmptyList[Commit], message: String) extends Operational {
+  object Rename {
+    def apply(previous: Commit, message: String): Operational = previous match {
+      case Pick(c) => Rename(c, message)
+      case Rename(c, _) => Rename(c, message)
+      case Squash(cs, _) => Squash(cs, message)
+      case it: Raw => Rename(it, message)
+    }
+  }
+
+  case class Squash(impurePrevious: NonEmptyList[Commit], message: String) extends Operational {
+    /** Raw only previous list */
+    val previous: List[Raw] = impurePrevious.list.foldRight(List[Raw]()) { (current, list) =>
+      current match {
+        case Pick(c) => c :: list
+        case Rename(c, _) => c :: list
+        case sq: Squash => sq.previous ++ list
+        case it: Raw => it :: list
+      }
+    }
+
     def perform(repository: GitRepository) = {
       val reversed = previous.reverse
       for {
-        newHead <- pickPrevious(reversed.head, repository).right
+        newHead <- pick(reversed.head, repository).right
         _ <- reversed.tail.foldLeft[PerformanceResult](Right(newHead)) { (prev, commit) =>
-          prev.right.flatMap(_ => pickPrevious(commit, repository))
+          prev.right.flatMap(_ => pick(commit, repository))
         }.right
         _ <- Right(repository.resetSoft(newHead.raw.getParent(0))).right
         lastCommit <- Right(repository.commit(message)).right
       } yield Raw(lastCommit)
     }
 
-    def derived(commit: Commit) = this == commit || previous.list.exists(_ derived commit)
-
-    def simplify = {
-      val news = previous.list.foldRight[List[Commit]](List()) { (current, list) =>
-        current.simplify match {
-          case Pick(c) => c :: list
-          case Rename(c, _) => c :: list
-          case Squash(cs, _) => cs.list ++ list
-          case it: Raw => it :: list
-        }
-      }
-      Squash(NonEmptyList.nel(news.head, news.tail), message)
-    }
+    def derived(commit: Commit) = this == commit || previous.exists(_ derived commit)
   }
 
   case class Raw(raw: RevCommit) extends Commit {

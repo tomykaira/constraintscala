@@ -58,9 +58,9 @@ trait CommitThread {
   }
 
   private def result(commits: List[Commit]) =
-    CommitThread.fromCommits(commits.map(_.simplify))
+    CommitThread.fromCommits(commits)
 
-  private def pick(cs: List[Commit]) = cs map Commit.Pick
+  private def pick(cs: List[Commit]): List[Commit] = cs map (Commit.Pick(_))
 
   /**
    * The caller must reset to the start commit of this thread before calling

@@ -15,51 +15,6 @@ class CommitSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
   def createSquash(ids: Range, message: String): Commit.Squash =
     createSquash(ids.toList.map(dummyCommit), message)
 
-  describe("simplify") {
-    val core = dummyCommit(3)
-    lazy val pick = Pick(dummyCommit(5))
-    lazy val rename = Commit.Rename(dummyCommit(4), "Rename")
-    lazy val squash = createSquash(1 to 3, "Squash")
-    describe("Pick") {
-      it("should simplify enclosing Pick") {
-        Pick(pick).simplify should equal (pick)
-      }
-      it("should simplify two enclosing Pick") {
-        Pick(Pick(pick)).simplify should equal (pick)
-      }
-      it("should simplify Rename") {
-        Pick(rename).simplify should equal (rename)
-      }
-      it("should simplify Squash") {
-        Pick(squash).simplify should equal (squash)
-      }
-    }
-    describe("Rename") {
-      it("should omit Pick") {
-        Rename(Pick(Pick(core)), "B").simplify should equal (Rename(core, "B"))
-      }
-      it("should simplify sequential Rename") {
-        Rename(rename, "B").simplify should equal (rename.copy(message = "B"))
-      }
-      it("should simplify squash -> rename to one squash") {
-        Rename(squash, "B").simplify should equal (squash.copy(message = "B"))
-      }
-    }
-    describe("Squash") {
-      it("should omit Pick") {
-        createSquash(List(Pick(Pick(core))), "Foo").simplify should equal (createSquash(List(core), "Foo"))
-      }
-      it("should ignore Rename") {
-        createSquash(List(Rename(core, "A"), dummyCommit(2)), "Foo").simplify.
-          should(equal (createSquash(List(core, dummyCommit(2)), "Foo")))
-      }
-      it("should expand internal squash") {
-        createSquash(List(dummyCommit(9), squash, dummyCommit(8)), "Foo").simplify.
-          should(equal (createSquash(List(9, 1, 2, 3, 8).map(dummyCommit), "Foo")))
-      }
-    }
-  }
-
   describe("perform") {
     before {
       initRepo()
