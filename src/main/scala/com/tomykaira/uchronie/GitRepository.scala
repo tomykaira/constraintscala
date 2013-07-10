@@ -114,11 +114,10 @@ class GitRepository(rootPath: File) {
     result
   }
 
-  def resetToOriginalBranch() {
-    resolve(Constants.HEAD) foreach { head =>
-      git.checkout().setName(originalBranch).call()
-      resetHard(head)
-      git.branchDelete().setBranchNames(workBranch).setForce(true).call()
-    }
+  def resetToOriginalBranch(last: ObjectId) {
+    resetHard(last)
+    git.checkout().setName(originalBranch).call()
+    resetHard(last)
+    git.branchDelete().setBranchNames(workBranch).setForce(true).call()
   }
 }

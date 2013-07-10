@@ -166,7 +166,7 @@ object Main extends SimpleSwingApplication {
     }
 
     override def closeOperation() {
-      repository.resetToOriginalBranch()
+      repository.resetToOriginalBranch(graphConstraint.get.last)
       super.closeOperation()
     }
   }

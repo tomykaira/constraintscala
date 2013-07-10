@@ -88,22 +88,20 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
 
   describe("resetToOriginalBranch") {
     it("should checkout master") {
-      repository.resetToOriginalBranch()
+      repository.resetToOriginalBranch(repository.head)
       repository.repository.getBranch should equal ("master")
     }
-    it("should not change HEAD") {
+    it("should back to specified commit") {
+      val first = firstCommit
       secondCommit
-      val beforeHead = repository.resolve(Constants.HEAD)
-      repository.resetToOriginalBranch()
-      val afterHead = repository.resolve(Constants.HEAD)
-      afterHead should equal (beforeHead)
+      repository.resetToOriginalBranch(first)
+      repository.head should equal (first.id)
     }
     it("should delete working branch") {
-      secondCommit
+      val last = secondCommit
       val workBranch = repository.repository.getBranch
-      repository.resetToOriginalBranch()
-      val afterHead = repository.resolve(workBranch)
-      afterHead should be (None)
+      repository.resetToOriginalBranch(last)
+      repository.resolve(workBranch) should be (None)
     }
   }
 }
