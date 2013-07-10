@@ -1,14 +1,15 @@
-package com.tomykaira.uchronie
+package com.tomykaira.uchronie.ui
 
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
+import com.tomykaira.uchronie.GitSpecHelper
 
-class DiffListDecoratorSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
+class DiffDecoratorSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
     initRepo()
   }
 
-  describe("fullDiff") {
+  describe("diffList") {
     it("should include diff of all files") {
       firstCommit
       addFile("test", "goodbye")

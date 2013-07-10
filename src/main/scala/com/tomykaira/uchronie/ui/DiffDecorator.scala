@@ -1,6 +1,7 @@
-package com.tomykaira.uchronie
+package com.tomykaira.uchronie.ui
 
 import org.eclipse.jgit.diff.DiffEntry
+import com.tomykaira.uchronie.GitRepository
 
 class DiffDecorator(diff: DiffEntry) {
   def path: String = diff.getChangeType match {
@@ -10,7 +11,15 @@ class DiffDecorator(diff: DiffEntry) {
       diff.getOldPath + " -> " + diff.getNewPath
   }
 
-  def formatted(repository: GitRepository): String = {
+  def fullDiff(repository: GitRepository): String = {
     repository.formatDiff(diff)
+  }
+
+  def name: String = path
+}
+
+class DiffListDecorator(diffs: List[DiffEntry]) {
+  def fullDiff(repository: GitRepository): String = {
+    diffs.map(new DiffDecorator(_).fullDiff(repository)).mkString("\n\n")
   }
 }

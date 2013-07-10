@@ -17,7 +17,7 @@ import scala.swing.event.ButtonClicked
 import com.tomykaira.uchronie.git.Commit
 import scala.Some
 import javax.swing.text.DefaultCaret
-import com.tomykaira.uchronie.ui.{EditManager, CommitDecorator, OperationView}
+import com.tomykaira.uchronie.ui.{DiffDecorator, EditManager, CommitDecorator, OperationView}
 
 object Main extends SimpleSwingApplication {
   val system = ActorSystem("Worker")
@@ -80,9 +80,9 @@ object Main extends SimpleSwingApplication {
       case _ =>
     })
 
-    val changedFiles = new FileList(commitsTable.state.convert({
+    val changedFiles = new DiffList(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        graphConstraint.get(range.start) flatMap {c => new CommitDecorator(c).diff(repository)} getOrElse Nil
+        graphConstraint.get.rowsToCommits(range.list) flatMap {c => new CommitDecorator(c).diff(repository) }
       case _ => Nil
     }))
     val comment = new CommentArea(commitsTable.state.convert({
@@ -101,8 +101,7 @@ object Main extends SimpleSwingApplication {
     val changes = new TextArea() {
       editable = false
       changedFiles.selectedItem.onChange({
-        case Some(AllFiles(diffs)) => text = new DiffListDecorator(diffs).fullDiff(repository)
-        case Some(FileDiff(diff)) => text = new DiffDecorator(diff).formatted(repository)
+        case Some(decorator) => text = decorator.fullDiff(repository)
         case None =>
       })
       peer.getCaret.asInstanceOf[DefaultCaret].setUpdatePolicy(DefaultCaret.NEVER_UPDATE)
