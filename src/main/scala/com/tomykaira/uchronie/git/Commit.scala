@@ -22,11 +22,6 @@ object Commit {
 
   class DummyCommitException extends RuntimeException("Defeat: DummyCommit is for testing")
 
-  sealed trait Concrete extends Commit {
-    def derived(commit: Commit): Boolean = this == commit
-    def simplify: Commit = this
-  }
-
   sealed trait Operational extends Commit {
     type PerformanceResult = Either[CherryPickFailure, Raw]
 
@@ -59,7 +54,7 @@ object Commit {
     def simplify =
       previous.simplify match {
         case it: Operational => it
-        case it: Concrete => Pick(it)
+        case it: Raw => Pick(it)
       }
   }
 
@@ -77,7 +72,7 @@ object Commit {
         case Pick(c) => Rename(c, message)
         case Rename(c, _) => Rename(c, message)
         case Squash(cs, _) => Squash(cs, message)
-        case it: Concrete => Rename(it, message)
+        case it: Raw => Rename(it, message)
       }
   }
 
@@ -102,18 +97,22 @@ object Commit {
           case Pick(c) => c :: list
           case Rename(c, _) => c :: list
           case Squash(cs, _) => cs.list ++ list
-          case it: Concrete => it :: list
+          case it: Raw => it :: list
         }
       }
       Squash(NonEmptyList.nel(news.head, news.tail), message)
     }
   }
 
-  case class Raw(raw: RevCommit) extends Concrete {
+  case class Raw(raw: RevCommit) extends Commit {
     val message = raw.getFullMessage
 
     val id = raw.getId
 
     val shortId = id.abbreviate(7).name()
+
+    def derived(commit: Commit): Boolean = this == commit
+
+    def simplify: Commit = this
   }
 }
