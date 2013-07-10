@@ -6,7 +6,11 @@ import com.tomykaira.uchronie.GitRepository
 case class CommitDecorator(commit: Commit) {
   val oneLineMessage: String = {
     val message = commit.message
-    message.take(message.indexOf('\n'))
+    val lineEnd = message.indexOf('\n')
+    if (lineEnd == -1)
+      message
+    else
+      message.take(lineEnd)
   }
 
   def tableRow: Array[AnyRef] = Array(commit.shortId, oneLineMessage)
