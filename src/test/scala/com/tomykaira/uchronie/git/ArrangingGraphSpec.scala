@@ -5,41 +5,22 @@ import org.scalatest.{FunSpec, BeforeAndAfter}
 import org.scalatest.EitherValues._
 import scala.collection.JavaConverters.asScalaIteratorConverter
 import com.tomykaira.uchronie.{TargetRange, GitSpecHelper}
-import scala.language.reflectiveCalls
 
 class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
     initRepo()
   }
 
-  trait GraphUtilities {
-    val commits: List[Commit.Raw]
-    lazy val graph = ArrangingGraph.startUp(repository, commits.head, commits.last)
-    lazy val first = commits(0)
-    lazy val second = commits(1)
-    lazy val third = commits(2)
-    lazy val fourth = commits(3)
-
-    def messages(g: { val commits: List[Commit] }): List[String] = g.commits.map(_.message)
-
-    def commitsInRange(h: Int, t: Int*) =
-      graph.rowsToCommits(h :: t.toList)
-  }
-
-  trait Fixture extends GraphUtilities {
+  trait Fixture {
     val commits = List(
       createCommit("A", "1st", "1st"),
       createCommit("B", "2nd", "2nd"),
       createCommit("C", "3rd", "3rd"),
       createCommit("D", "4th", "4th"))
-  }
 
-  trait ConflictFixture extends GraphUtilities {
-    val commits = List(
-      createCommit("A", "1st", "1st"),
-      createCommit("A", "2nd", "2nd"),
-      createCommit("A", "3rd", "3rd"),
-      createCommit("A", "4th", "4th"))
+    lazy val graph = ArrangingGraph.startUp(repository, commits.head, commits.last)
+
+    def messages(g: ArrangingGraph): List[String] = g.commits.map(_.message)
   }
 
   describe("transit") {
@@ -73,7 +54,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     it("should return no range object if all commits are deleted") {
       val commits = List(firstCommit, secondCommit).reverse
       val before = ArrangingGraph.startUp(repository, commits.last, commits.head)
-      before.commits should have length 1
+      before.commits should have length 1 // gauntlet
       val after = before.transit(Operation.DeleteOp(0)).applyCurrentThread.right.value
       after.start should equal (after.last)
       after.commits should be ('empty)
