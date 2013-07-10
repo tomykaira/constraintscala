@@ -54,18 +54,6 @@ object Main extends SimpleSwingApplication {
       }
     }
 
-    val performingThread = new StaticConstraint[Option[CommitThread]](None)
-
-    performingThread.onChange {
-      case None => processingFSM.changeStateTo(Stopped())
-      case Some(_) =>
-    }
-
-    performingThread.onChange {
-      case Some(thread) =>
-      case None =>
-    }
-
     def dispatch(op: Operation) {
       graphConstraint.update(graphConstraint.get.transit(op))
     }
@@ -76,12 +64,10 @@ object Main extends SimpleSwingApplication {
       case Stopped() => commitsTable.enabled = true
     }
 
-    // TODO: move somewhere
     val onEdit = { range: TargetRange =>
-      graphConstraint.get match {
-        case clean: ArrangingGraph.Clean =>
-          new EditManager(clean, range, graphConstraint, processingFSM).run()
-        case _: ArrangingGraph.Modified =>
+      EditManager(graphConstraint.get, range, processingFSM) match {
+        case Some(manager) => graphConstraint.update(manager.run)
+        case None =>
           Dialog.showMessage(title = "Edit commit",
             message = "There are not applied operation(s).\nApply all changes before editing")
       }

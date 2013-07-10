@@ -5,17 +5,14 @@ import com.tomykaira.uchronie.TargetRange
 import scala.swing.Dialog
 import scala.annotation.tailrec
 import com.tomykaira.uchronie.Main.{ProcessingState, Stopped, Working}
-import com.tomykaira.constraintscala.{FSM, StaticConstraint}
+import com.tomykaira.constraintscala.FSM
 
-// TODO: shorten args
-class EditManager(graph: ArrangingGraph.Clean, range: TargetRange, graphConstraint: StaticConstraint[ArrangingGraph], processingFSM: FSM[ProcessingState]) {
-  def abort() {
-    graphConstraint.update(graph.rollback)
-  }
+class EditManager(graph: ArrangingGraph.Clean, range: TargetRange, processingFSM: FSM[ProcessingState]) {
+  def abort: ArrangingGraph =
+    graph.rollback
 
-  def finish(done: IncrementalEditor.Done) {
-    graphConstraint.update(ArrangingGraph.renew(graph, done.head))
-  }
+  def finish(done: IncrementalEditor.Done): ArrangingGraph =
+    ArrangingGraph.renew(graph, done.head)
 
   def processing[A](f: => A): A = {
     processingFSM.changeStateTo(Working())
@@ -25,7 +22,7 @@ class EditManager(graph: ArrangingGraph.Clean, range: TargetRange, graphConstrai
   }
 
   @tailrec
-  private def loop(next: IncrementalEditor): Unit = next match {
+  private def loop(next: IncrementalEditor): ArrangingGraph = next match {
     case done: IncrementalEditor.Done =>
       finish(done)
     case going: IncrementalEditor.Going =>
@@ -36,7 +33,7 @@ class EditManager(graph: ArrangingGraph.Clean, range: TargetRange, graphConstrai
             case Dialog.Result.Yes =>
               loop(rest)
             case Dialog.Result.No =>
-              abort()
+              abort
           }
       }
   }
@@ -57,13 +54,23 @@ class EditManager(graph: ArrangingGraph.Clean, range: TargetRange, graphConstrai
       initial = 0
     )
 
-  def run() {
+  def run: ArrangingGraph = {
     val going = processing { graph.startEdit(range.end) }
 
     openEditWaitingDialog match {
       case Dialog.Result.Yes => loop(going)
-      case Dialog.Result.No => abort()
+      case Dialog.Result.No => abort
     }
   }
+}
 
+object EditManager {
+  def apply(graph: ArrangingGraph, range: TargetRange, processingFSM: FSM[ProcessingState]): Option[EditManager] = {
+    graph match {
+      case clean: ArrangingGraph.Clean =>
+        Some(new EditManager(clean, range, processingFSM))
+      case _: ArrangingGraph.Modified =>
+        None
+    }
+  }
 }
