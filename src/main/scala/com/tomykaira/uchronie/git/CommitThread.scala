@@ -38,8 +38,8 @@ trait CommitThread {
         return this
 
       val targets = indices.list.map(commits(_))
-      val lastTarget = indices.end
-      val picked = pick(commits.take(lastTarget)) ++ commits.drop(lastTarget)
+      val firstModified = pos.max(indices.end + 1)
+      val picked = pick(commits.take(firstModified)) ++ commits.drop(firstModified)
       result(picked.take(pos).filterNot(p => targets.exists(t => p derived t)) ++
         pick(targets) ++
         picked.drop(pos).filterNot(p => targets.exists(t => p derived t)))
