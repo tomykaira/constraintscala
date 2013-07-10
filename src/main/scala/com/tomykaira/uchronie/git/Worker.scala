@@ -1,6 +1,7 @@
 package com.tomykaira.uchronie.git
 
 import akka.actor.{Status, Actor}
+import com.tomykaira.uchronie.CherryPickFailure
 
 class Worker extends Actor {
   def receive = {
@@ -10,10 +11,10 @@ class Worker extends Actor {
       respondResult(Right(g))
   }
 
-  def respondResult(result: Either[String, ArrangingGraph]) {
+  def respondResult(result: Either[CherryPickFailure, ArrangingGraph]) {
     sender ! (result match {
       case Right(graph) => Status.Success(graph)
-      case Left(err) => Status.Failure(new Throwable(err))
+      case Left(failure) => Status.Failure(failure)
     })
   }
 }

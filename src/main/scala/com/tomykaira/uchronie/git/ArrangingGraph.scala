@@ -1,7 +1,7 @@
 package com.tomykaira.uchronie.git
 
 import org.eclipse.jgit.lib.ObjectId
-import com.tomykaira.uchronie.{TargetRange, GitRepository}
+import com.tomykaira.uchronie.{CherryPickFailure, TargetRange, GitRepository}
 import com.tomykaira.uchronie.git.Commit.Raw
 
 sealed trait ArrangingGraph {
@@ -68,17 +68,11 @@ object ArrangingGraph {
     lazy val start = previous.start
     lazy val last = previous.last
 
-    def applyCurrentThread: Either[String, ArrangingGraph.Clean] = {
+    def applyCurrentThread: Either[CherryPickFailure, ArrangingGraph.Clean] = {
       repository.resetHard(start)
-      thread.perform(repository) match {
-        case Left(failure) => Left(failure.toString)
-        case Right(result) =>
-          result.headOption match {
-            case None =>
-              Right(renew(this, start))
-            case Some(commit) =>
-              Right(renew(this, commit))
-          }
+      thread.perform(repository).right map { result =>
+        val newLast = result.headOption.getOrElse(start)
+        renew(this, newLast)
       }
     }
   }

@@ -10,7 +10,7 @@ import scala.Some
 import org.eclipse.jgit.treewalk.CanonicalTreeParser
 import org.eclipse.jgit.diff.{DiffFormatter, DiffEntry}
 
-case class CherryPickFailure(original: RevCommit)
+case class CherryPickFailure(original: RevCommit) extends Exception(s"Cherry pick failed at ${original.getName}")
 
 class NoHeadException extends RuntimeException("no HEAD revision")
 
