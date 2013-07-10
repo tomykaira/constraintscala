@@ -75,7 +75,7 @@ object ArrangingGraph {
         case Right(result) =>
           result.headOption match {
             case None =>
-              Left("Unsupported operation: All commits are deleted")
+              Right(renew(this, start))
             case Some(commit) =>
               Right(renew(this, commit))
           }

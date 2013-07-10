@@ -146,6 +146,10 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
       newCommits should have length 9
     }
 
+    it("should return empty list if every commits are deleted") {
+      CommitThread.fromCommits(List()).perform(repository) should equal (Right(List()))
+    }
+
     it("should perform operations") {
       val commits = (1 to 10).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
       repository.resetHard(commits(9))

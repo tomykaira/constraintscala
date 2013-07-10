@@ -70,6 +70,14 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   }
 
   describe("applyCurrentThread") {
+    it("should return no range object if all commits are deleted") {
+      val commits = List(firstCommit, secondCommit).reverse
+      val before = ArrangingGraph.startUp(repository, commits.last, commits.head)
+      before.commits should have length 1
+      val after = before.transit(Operation.DeleteOp(0)).applyCurrentThread.right.value
+      after.start should equal (after.last)
+      after.commits should be ('empty)
+    }
     it("should actually apply the result of operations") {
       val commits = (1 to 10).map { i => createCommit(s"$i.txt", i.toString, i.toString)}.reverse.toList
       val result = ArrangingGraph.startUp(repository, commits.last, commits.head).
