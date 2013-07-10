@@ -20,9 +20,8 @@ object CommitThread {
 
 trait CommitThread {
   val commits: List[Commit]
-  type OperationResult = CommitThread
 
-  def applyOperation(op: Operation): OperationResult = op match {
+  def applyOperation(op: Operation): CommitThread = op match {
     case Operation.RenameOp(index, message) =>
       if (!commits.indices.contains(index))
         this
@@ -83,7 +82,6 @@ trait CommitThread {
           case Left(err) => Left(err)
           case Right(c) => rebase(tail, c :: result)
         }
-      case _ => throw new RuntimeException("Unexpected commit")
     }
     rebase(commits.reverse, List())
   }
