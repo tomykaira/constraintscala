@@ -10,7 +10,15 @@ import scala.Some
 import org.eclipse.jgit.treewalk.CanonicalTreeParser
 import org.eclipse.jgit.diff.{DiffFormatter, DiffEntry}
 
-case class CherryPickFailure(original: RevCommit) extends Exception(s"Cherry pick failed at ${original.getName}")
+class CherryPickFailure(repository: GitRepository, val original: RevCommit)
+  extends RuntimeException(s"Cherry pick failed at ${original.getName}") {
+
+  val message = s"""Cherry pick failed at ${original.getId.abbreviate(7).name}: ${original.getShortMessage}
+Conflicts:
+  ${repository.status.getConflicting}
+"""
+  override def getMessage: String = message
+}
 
 class NoHeadException extends RuntimeException("no HEAD revision")
 
@@ -71,7 +79,7 @@ class GitRepository(rootPath: File) {
   def cherryPick(commit: RevCommit): Either[CherryPickFailure, RevCommit] = {
     val result = git.cherryPick().include(commit.getId).call()
     if (result.getStatus != CherryPickResult.CherryPickStatus.OK)
-      Left(CherryPickFailure(commit))
+      Left(new CherryPickFailure(this, commit))
     else
       Right(result.getNewHead)
   }
@@ -101,8 +109,10 @@ class GitRepository(rootPath: File) {
     git.commit().setMessage(message).call()
   }
 
+  def status: Status = git.status.call
+
   def isClean: Boolean = {
-    val result = git.status.call
+    val result = status
     result.getAdded.isEmpty && result.getChanged.isEmpty && result.getRemoved.isEmpty && result.getMissing.isEmpty &&
       result.getModified.isEmpty && result.getConflicting.isEmpty
   }

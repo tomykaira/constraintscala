@@ -47,7 +47,7 @@ object Main extends SimpleSwingApplication {
           processingFSM.changeStateTo(Stopped())
       }
       future.onSuccess {
-        case g => graphConstraint.update(g)
+        case g: ArrangingGraph => graphConstraint.update(g)
       }
       future.onFailure {
         case err => Dialog.showMessage(title = "Error", message = err.getMessage)
