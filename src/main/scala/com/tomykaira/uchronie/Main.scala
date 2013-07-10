@@ -67,8 +67,7 @@ object Main extends SimpleSwingApplication {
     }
 
     def dispatch(op: Operation) {
-      graphConstraint.get.transit(op)
-      graphConstraint.update(graphConstraint.get) // FIXME: fake update
+      graphConstraint.update(graphConstraint.get.transit(op))
     }
 
     val commitsTable = new CommitsTable(graphConstraint)
@@ -97,8 +96,7 @@ object Main extends SimpleSwingApplication {
 
     val changedFiles = new FileList(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        val c = graphConstraint.get.commits(range.start)
-        new CommitDecorator(c).diff(repository).getOrElse(Nil)
+        graphConstraint.get(range.start) flatMap {c => new CommitDecorator(c).diff(repository)} getOrElse Nil
       case _ => Nil
     }))
     val comment = new CommentArea(commitsTable.state.convert({

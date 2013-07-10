@@ -17,6 +17,13 @@ sealed trait ArrangingGraph {
 
   lazy val commits = thread.commits
 
+  def apply(index: TargetRange.Index): Option[Commit] = {
+    if (commits.indices.contains(index))
+      Some(commits(index))
+    else
+      None
+  }
+
   def transit(op: Operation): ArrangingGraph.Modified = {
     val from = this
     new ArrangingGraph.Modified {
@@ -35,7 +42,10 @@ sealed trait ArrangingGraph {
     rowsToCommits(rows).reverse.map(_.message.stripLineEnd).mkString("\n\n")
 
   def rowsToCommits(rows: List[Int]): List[Commit] =
-    rows.map(i => thread.commits(i))
+    rows.foldRight(List[Commit]())((i, r) => apply(i) match {
+      case Some(c) => c :: r
+      case None => r }
+    )
 }
 
 object ArrangingGraph {
