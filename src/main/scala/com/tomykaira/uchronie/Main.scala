@@ -50,10 +50,16 @@ object Main extends SimpleSwingApplication {
       case _ =>
     }
 
+    def setCommentOnNeed(op: Operation): Operation = (op, comment.messageFSM.get) match {
+      case (Operation.SquashOp(range, None), comment.Editing(_)) =>
+        Operation.SquashOp(range, Some(comment.text))
+    }
+
     def dispatch(op: Operation) {
       fsm changeState {
         case s @ (GraphState.Modified(_) | GraphState.Clean(_)) =>
-          GraphState.Modified(s.graph.transit(op))
+          val commented = setCommentOnNeed(op)
+          GraphState.Modified(s.graph.transit(commented))
       }
     }
 
@@ -110,11 +116,7 @@ object Main extends SimpleSwingApplication {
           reactions += {
             case e: ButtonClicked =>
               currentRange.foreach { range =>
-                val newMessage = comment.messageFSM.get match {
-                  case comment.Editing(_) => Some(comment.text)
-                  case _ => None
-                }
-                dispatch(Operation.SquashOp(range, newMessage))
+                dispatch(Operation.SquashOp(range, None))
               }
           }
         }
