@@ -4,6 +4,7 @@ import org.eclipse.jgit.lib.{Constants, ObjectId}
 import scala.annotation.tailrec
 import com.tomykaira.uchronie.git.{Operation, CommitThread, ThreadTransition, Commit}
 import com.tomykaira.uchronie.git.Commit.Raw
+import scalaz.NonEmptyList
 
 class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val last: ObjectId) {
   type OperationResult = Either[String, CommitThread]
@@ -34,19 +35,22 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
     repository.resetHard(last)
   }
 
-  def selectRange(rows: Seq[Int]) = {
-    val selected = rows.map(i => currentThread.commits(i)).toList
+  def selectRange(rows: NonEmptyList[Int]) = {
+    val selected = rows.map(i => currentThread.commits(i))
     new GraphRange(this, selected)
   }
 
   def contains(range: GraphRange): Boolean = range.graph == this
 
   // TODO: accept only Raw
-  def startEdit(commit: Commit): GraphRange = {
+  def startEdit(commit: Commit): Option[GraphRange] = {
     val orphans = commits.takeWhile(_ != commit)
     repository.resetHard(commit.asInstanceOf[Commit.Raw].raw)
     repository.resetSoft(parent(commit).asInstanceOf[Commit.Raw].raw)
-    new GraphRange(this, orphans)
+    orphans match {
+      case Nil => None
+      case h :: t => Some(new GraphRange(this, NonEmptyList.nel(h, t)))
+    }
   }
 
   def applyInteractively(range: GraphRange): Either[GraphRange, ArrangingGraph] = {
@@ -57,11 +61,11 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
       case Nil => Right(new ArrangingGraph(repository, start, repository.resolve(Constants.HEAD).get))
       case x :: xs =>
         repository.cherryPick(x.asInstanceOf[Commit.Raw].raw) match {
-          case Left(err) => Left(new GraphRange(this, xs.reverse))
+          case Left(err) => Left(new GraphRange(this, NonEmptyList.nel(xs.head, xs.tail))) // TODO: unsafe
           case Right(_) => loop(xs)
         }
     }
-    loop(range.commits.reverse)
+    loop(range.commits.list.reverse)
   }
 
   // parent in the target graph
@@ -99,14 +103,12 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val las
 
 }
 
-class GraphRange(val graph: ArrangingGraph, val commits: List[Commit]) {
-  def isEmpty: Boolean = commits.isEmpty
-
-  def first: Option[Commit] = {
-    commits.headOption
+class GraphRange(val graph: ArrangingGraph, val commits: NonEmptyList[Commit]) {
+  def first: Commit = {
+    commits.head
   }
 
   def squashMessage: String= {
-    commits.reverse.map(_.message.stripLineEnd).mkString("\n\n")
+    commits.list.reverse.map(_.message.stripLineEnd).mkString("\n\n")
   }
 }

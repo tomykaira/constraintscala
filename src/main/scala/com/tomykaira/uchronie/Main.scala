@@ -134,7 +134,10 @@ object Main extends SimpleSwingApplication {
         val orphans = currentGraph.startEdit(commit)
         openEditWaitingDialog match {
           case Dialog.Result.Yes =>
-            pickInteractively(orphans)
+            orphans match {
+              case Some(range) => pickInteractively(range)
+              case None => throw new RuntimeException("TODO") // TODO
+            }
           case _ =>
             currentGraph.rollback()
             editFSM.changeStateTo(NotEditing())
@@ -145,13 +148,13 @@ object Main extends SimpleSwingApplication {
     commitsTable.state.onChange({
       case commitsTable.Dropped(range, at) =>
         commitsTable.state.changeStateTo(commitsTable.RowsSelected(range))
-        dispatch(Operation.MoveOp(range.commits, at))
+        dispatch(Operation.MoveOp(range.commits.list, at))
       case _ =>
     })
 
     val changedFiles = new FileList(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        range.first.flatMap(c => new CommitDecorator(c).diff(repository)).getOrElse(Nil)
+        new CommitDecorator(range.first).diff(repository).getOrElse(Nil)
       case _ => Nil
     }))
     val comment = new CommentArea(commitsTable.state.convert({
@@ -161,10 +164,9 @@ object Main extends SimpleSwingApplication {
     }))
     comment.messageFSM.onChange({
       case comment.Committing(range, message) =>
-        range.commits match {
-          case Nil =>
-          case c :: Nil => dispatch(Operation.RenameOp(c, message))
-          case commits => dispatch(Operation.SquashOp(commits, Some(message)))
+        range.commits.tail match {
+          case Nil => dispatch(Operation.RenameOp(range.first, message))
+          case _ => dispatch(Operation.SquashOp(range.commits.list, Some(message)))
         }
       case _ =>
     })
@@ -195,7 +197,7 @@ object Main extends SimpleSwingApplication {
                     case comment.Editing(_) => Some(comment.text)
                     case _ => None
                   }
-                  dispatch(Operation.SquashOp(range.commits, newMessage))
+                  dispatch(Operation.SquashOp(range.commits.list, newMessage))
                 case _ =>
               }
           }
@@ -205,7 +207,7 @@ object Main extends SimpleSwingApplication {
             case e: ButtonClicked =>
               commitsTable.state.get match {
                 case commitsTable.RowsSelected(range) =>
-                  range.commits foreach {c => dispatch(Operation.DeleteOp(c))}
+                  range.commits.list foreach {c => dispatch(Operation.DeleteOp(c))}
                 case _ =>
               }
           }
@@ -215,10 +217,10 @@ object Main extends SimpleSwingApplication {
             case e: ButtonClicked =>
               commitsTable.state.get match {
                 case commitsTable.RowsSelected(range) =>
-                  range.first.foreach(commit => commit match {
+                  range.first match {
                     case Commit.Raw(r) => editFSM.changeState(NotEditing(), EditCommit(r))
                     case _ => sys.error("Unsupported operation")
-                  })
+                  }
                 case _ =>
               }
           }

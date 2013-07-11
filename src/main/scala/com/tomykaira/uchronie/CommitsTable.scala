@@ -7,6 +7,7 @@ import javax.swing._
 import java.awt.datatransfer.{Transferable, DataFlavor}
 import javax.activation.{DataHandler, ActivationDataFlavor}
 import scala.swing.event.TableRowsSelected
+import scalaz.NonEmptyList
 
 class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
   sealed trait OperationState
@@ -37,11 +38,9 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
 
   reactions += {
     case _: TableRowsSelected => {
-      val range = peer.getSelectedRows
-      if (range.isEmpty) {
-        state.changeStateTo(NoOperation())
-      } else {
-        state.changeStateTo(RowsSelected(graph.get.selectRange(range)))
+      peer.getSelectedRows.toList match {
+        case Nil => state.changeStateTo(NoOperation())
+        case h :: t => state.changeStateTo(RowsSelected(graph.get.selectRange(NonEmptyList.nel(h, t))))
       }
     }
   }

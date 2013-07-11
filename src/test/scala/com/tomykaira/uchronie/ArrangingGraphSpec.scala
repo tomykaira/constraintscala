@@ -6,7 +6,8 @@ import org.scalatest.EitherValues._
 import org.eclipse.jgit.lib.Constants
 import com.tomykaira.uchronie.git.{Operation, Commit}
 import scala.language.reflectiveCalls
-import scala.collection.JavaConverters.{asScalaIteratorConverter, collectionAsScalaIterableConverter}
+import scala.collection.JavaConverters.asScalaIteratorConverter
+import scalaz.NonEmptyList
 
 class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -21,12 +22,10 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     lazy val third = commits(2)
     lazy val fourth = commits(3)
 
-    def emptyRange: GraphRange = graph.selectRange(Seq())
-
     def messages(g: { val commits: List[Commit] }): List[String] = g.commits.map(_.message)
 
-    def commitsInRange(seq: Seq[Int]) =
-      graph.selectRange(seq).commits
+    def commitsInRange(h: Int, t: Int*) =
+      graph.selectRange(NonEmptyList.nel(h, t.toList)).commits.list
   }
 
   trait Fixture extends GraphUtilities {
@@ -48,28 +47,23 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
   describe("selectRange") {
     it("should refer original graph") {
       new Fixture {
-        val range = graph.selectRange(Seq())
+        val range = graph.selectRange(NonEmptyList(1))
         range.graph should equal (graph)
-      }
-    }
-    it("should have no commit if range is empty") {
-      new Fixture {
-        commitsInRange(Seq()) should have length 0
       }
     }
     it("should have 1 commit in range") {
       new Fixture {
-        commitsInRange(Seq(0)) should equal (List(commits.last))
+        commitsInRange(0) should equal (List(commits.last))
       }
     }
     it("should have 2 commits in range") {
       new Fixture {
-        commitsInRange(Seq(0,1)) should equal (List(fourth, third))
+        commitsInRange(0, 1) should equal (List(fourth, third))
       }
     }
     it("should have 2 commits not in sequence") {
       new Fixture {
-        commitsInRange(Seq(0,2)) should equal (List(fourth, second))
+        commitsInRange(0, 2) should equal (List(fourth, second))
       }
     }
   }
@@ -83,15 +77,13 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     }
     it("should move commits") {
       new Fixture {
-        val range = graph.selectRange(Seq(1,2))
-        graph.transit(Operation.MoveOp(range.commits, 0))
+        graph.transit(Operation.MoveOp(commitsInRange(1, 2), 0))
         messages(graph.currentThread) should equal (List("3rd", "2nd", "4th"))
       }
     }
     it("should squash 2 commits") {
       new Fixture {
-        val range = graph.selectRange(Seq(1,2))
-        graph.transit(Operation.SquashOp(range.commits, None))
+        graph.transit(Operation.SquashOp(commitsInRange(1, 2), None))
         messages(graph.currentThread) should equal (List("4th", "2nd\n\n3rd"))
       }
     }
@@ -119,7 +111,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     it("should return orphan commits") {
       new Fixture {
         val orphans = graph.startEdit(commits(2))
-        orphans.commits should equal (List(commits(3)))
+        orphans.get.commits.list should equal (List(commits(3)))
       }
     }
   }
@@ -128,7 +120,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     it("should return new ArrangingGraph if success") {
       new Fixture {
         // Instantiate graph before run
-        val range = graph.selectRange(Seq(0))
+        val range = graph.selectRange(NonEmptyList(0))
         repository.resetHard(second)
         val result = graph.applyInteractively(range)
         messages(result.right.value) should equal (List("4th", "2nd"))
@@ -137,20 +129,20 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     it("should return succeeding commits if failure") {
       new ConflictFixture {
         repository.resetHard(first)
-        val result = graph.applyInteractively(graph.selectRange(Seq(0,1)))
-        result.left.value.commits should equal (List(commits.last))
+        val result = graph.applyInteractively(graph.selectRange(NonEmptyList(0, 1)))
+        result.left.value.commits.list should equal (List(commits.last))
       }
     }
     it("should keep repository dirty") {
       new ConflictFixture {
         repository.resetHard(first)
-        graph.applyInteractively(graph.selectRange(Seq(0,1)))
+        graph.applyInteractively(graph.selectRange(NonEmptyList(0,1)))
         repository.isClean should be (false)
       }
     }
     it("should return given range if already dirty") {
       new Fixture {
-        val range = graph.selectRange(Seq(0))
+        val range = graph.selectRange(NonEmptyList(0))
         repository.resetSoft(first)
         val result = graph.applyInteractively(range)
         result.left.value should equal (range)

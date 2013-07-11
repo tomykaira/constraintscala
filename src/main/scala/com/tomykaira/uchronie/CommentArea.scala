@@ -23,7 +23,7 @@ class CommentArea(constraint: Constraint[Option[GraphRange]]) extends TextArea {
   }
 
   constraint.onChange({
-    case Some(range) if range.commits.length > 0 =>
+    case Some(range) =>
       messageFSM.changeStateTo(Selected(range))
     case None => messageFSM.changeStateTo(NothingSelected())
   })
