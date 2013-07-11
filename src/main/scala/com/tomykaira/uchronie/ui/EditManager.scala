@@ -4,9 +4,6 @@ import com.tomykaira.uchronie.git.{IncrementalEditor, ArrangingGraph}
 import com.tomykaira.uchronie.TargetRange
 import scala.swing.Dialog
 import scala.annotation.tailrec
-import com.tomykaira.uchronie.Main.{ProcessingState, Stopped, Working}
-import com.tomykaira.constraintscala.FSM
-import com.tomykaira.uchronie.ui.GraphState.Editing
 
 class EditManager(val graph: ArrangingGraph.Clean, range: TargetRange) {
   def abort: ArrangingGraph.Clean =

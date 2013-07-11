@@ -6,9 +6,9 @@ import scala.swing.event.{Key, KeyReleased}
 import java.awt.event.InputEvent
 import javax.swing.text.DefaultCaret
 import com.tomykaira.uchronie.git.Operation
-import com.tomykaira.uchronie.TargetRange
+import com.tomykaira.uchronie.{GraphFSM, TargetRange}
 
-class CommentArea(fsm: FSM[GraphState], currentRange: Constraint[Option[TargetRange]], dispatch: Operation => Unit) extends TextArea {
+class CommentArea(fsm: GraphFSM, currentRange: Constraint[Option[TargetRange]]) extends TextArea {
   sealed trait MessageState
   case class NothingSelected() extends MessageState
   case class Selected(range: TargetRange, defaultMessage: String) extends MessageState
@@ -46,9 +46,9 @@ class CommentArea(fsm: FSM[GraphState], currentRange: Constraint[Option[TargetRa
   messageFSM.onChange({
     case Committing(range, message) =>
       if (range.isSingleton)
-        dispatch(Operation.RenameOp(range.start, message))
+        fsm.dispatch(Operation.RenameOp(range.start, message))
       else
-        dispatch(Operation.SquashOp(range, Some(message)))
+        fsm.dispatch(Operation.SquashOp(range, Some(message)))
     case _ =>
   })
 

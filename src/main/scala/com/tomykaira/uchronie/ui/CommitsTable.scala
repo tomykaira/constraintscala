@@ -7,11 +7,11 @@ import javax.swing._
 import java.awt.datatransfer.{Transferable, DataFlavor}
 import javax.activation.{DataHandler, ActivationDataFlavor}
 import scala.swing.event.TableRowsSelected
-import com.tomykaira.uchronie.TargetRange
+import com.tomykaira.uchronie.{GraphFSM, TargetRange}
 import com.tomykaira.uchronie.git.Operation
 
 
-class CommitsTable(fsm: FSM[GraphState], dispatch: Operation => Unit) extends Table {
+class CommitsTable(fsm: GraphFSM) extends Table {
   sealed trait OperationState
   case class NoOperation() extends OperationState
   case class RowsSelected(range: TargetRange) extends OperationState
@@ -44,7 +44,7 @@ class CommitsTable(fsm: FSM[GraphState], dispatch: Operation => Unit) extends Ta
   state.onChange({
     case Dropped(range, at) =>
       state.changeStateTo(RowsSelected(range))
-      dispatch(Operation.MoveOp(range, at))
+      fsm.dispatch(Operation.MoveOp(range, at))
     case _ =>
   })
 
