@@ -37,18 +37,10 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
     }
   }
 
-  describe("abbreviate") {
-    it("should abbreviate ObjectID to human readable ID") {
-      val commit = firstCommit
-      repository.abbreviate(commit.getId).name should have length 7
-    }
-  }
-
   describe("resolve") {
     it("should expand abbreviated ObjectId to the internal expression") {
       val commit = firstCommit
-      val shortSha1 = repository.abbreviate(commit.getId).name
-      val id = repository.resolve(shortSha1)
+      val id = repository.resolve(commit.abbreviate(7).name())
       id.get should equal (commit.getId)
     }
 
