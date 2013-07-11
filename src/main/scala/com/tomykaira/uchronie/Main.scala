@@ -3,7 +3,6 @@ package com.tomykaira.uchronie
 import scala.swing._
 import org.eclipse.jgit.lib.ObjectId
 import com.tomykaira.constraintscala.FSM
-import javax.swing.border.EmptyBorder
 import akka.actor.{Props, ActorSystem}
 import com.tomykaira.uchronie.git._
 import akka.pattern.ask
@@ -11,10 +10,8 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.concurrent.ExecutionContext.Implicits.global
-import javax.swing.text.DefaultCaret
 import com.tomykaira.uchronie.ui._
-import scala.swing.event.ButtonClicked
-import com.tomykaira.uchronie.ui.CommitDecorator
+import com.tomykaira.uchronie.ui.SwingHelper._
 
 object Main extends SimpleSwingApplication {
   val system = ActorSystem("Worker")
@@ -53,6 +50,7 @@ object Main extends SimpleSwingApplication {
     def setCommentOnNeed(op: Operation): Operation = (op, comment.messageFSM.get) match {
       case (Operation.SquashOp(range, None), comment.Editing(_)) =>
         Operation.SquashOp(range, Some(comment.text))
+      case _ => op
     }
 
     def dispatch(op: Operation) {
@@ -63,20 +61,9 @@ object Main extends SimpleSwingApplication {
       }
     }
 
-    val commitsTable = new CommitsTable(fsm)
+    val commitsTable = new CommitsTable(fsm, dispatch)
 
-    commitsTable.state.onChange({
-      case commitsTable.Dropped(range, at) =>
-        commitsTable.state.changeStateTo(commitsTable.RowsSelected(range))
-        dispatch(Operation.MoveOp(range, at))
-      case _ =>
-    })
 
-    val changedFiles = new DiffList(commitsTable.state.convert({
-      case commitsTable.RowsSelected(range) =>
-        fsm.get.graph.rowsToCommits(range.list) flatMap {c => new CommitDecorator(c).diff(repository) }
-      case _ => Nil
-    }))
     val comment = new CommentArea(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
         Some((fsm.get.graph, range))
@@ -90,69 +77,21 @@ object Main extends SimpleSwingApplication {
           dispatch(Operation.SquashOp(range, Some(message)))
       case _ =>
     })
-    val changes = new TextArea() {
-      editable = false
-      changedFiles.selectedItem.onChange({
-        case Some(decorator) => text = decorator.fullDiff(repository)
-        case None =>
-      })
-      peer.getCaret.asInstanceOf[DefaultCaret].setUpdatePolicy(DefaultCaret.NEVER_UPDATE)
-    }
-
-    def scrollable(c: Component): ScrollPane =
-      new ScrollPane(c) {
-        border = new EmptyBorder(0,0,0,0)
-      }
 
     def currentRange: Option[TargetRange] = commitsTable.state.get match {
         case commitsTable.RowsSelected(range) => Some(range)
         case _ => None
       }
 
-    val commitsController = new BorderPanel() {
-      val buttons = new GridPanel(1, 2) {
-        maximumSize = new Dimension(Integer.MAX_VALUE, 50)
-        contents += new Button("Squash") {
-          reactions += {
-            case e: ButtonClicked =>
-              currentRange.foreach { range =>
-                dispatch(Operation.SquashOp(range, None))
-              }
-          }
-        }
-        contents += new Button("Delete") {
-          reactions += {
-            case e: ButtonClicked => currentRange.foreach { range =>
-              range.list foreach {c => dispatch(Operation.DeleteOp(c))}
-            }
-          }
-        }
-        contents += new Button("Edit") {
-          tooltip = "Edit is available when you have no pending operations"
-          fsm.onChange {
-            case GraphState.Clean(_) => enabled = true
-            case _ => enabled = false
-          }
-          reactions += {
-            case e: ButtonClicked => currentRange.foreach { range =>
-              fsm changeState {
-                case GraphState.Clean(g) => GraphState.Editing(new EditManager(g, range))
-              }
-            }
-          }
-        }
-      }
+    val commitsView = new BorderPanel {
       add(scrollable(commitsTable), BorderPanel.Position.Center)
-      add(buttons, BorderPanel.Position.South)
+      add(new CommitsController(fsm, currentRange, dispatch), BorderPanel.Position.South)
     }
 
     val gitView = new SplitPane(Orientation.Vertical,
-      new SplitPane(Orientation.Horizontal, commitsController, scrollable(comment)) {
+      new SplitPane(Orientation.Horizontal, commitsView, scrollable(comment)) {
         dividerLocation = 200
-      },
-      new SplitPane(Orientation.Horizontal, scrollable(changedFiles), scrollable(changes)) {
-        dividerLocation = 200
-      })
+      }, new ChangesView(fsm, commitsTable))
 
     contents = new BorderPanel() {
       add(new OperationView(fsm), BorderPanel.Position.North)

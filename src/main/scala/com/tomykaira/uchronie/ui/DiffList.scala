@@ -1,13 +1,11 @@
-package com.tomykaira.uchronie
+package com.tomykaira.uchronie.ui
 
 import scala.swing.{ListView, Component, Label, Alignment}
-import org.eclipse.jgit.diff.DiffEntry
 import java.awt.Color
 import scala.swing.ListView.Renderer
 import com.tomykaira.constraintscala.Constraint
 import scala.swing.event.SelectionChanged
 import javax.swing.JList
-import com.tomykaira.uchronie.ui.DiffDecorator
 
 class DiffList(changesConstraint: Constraint[List[DiffDecorator]]) extends ListView[DiffDecorator] {
   lazy val typedPeer: JList[DiffDecorator] = peer.asInstanceOf[JList[DiffDecorator]]

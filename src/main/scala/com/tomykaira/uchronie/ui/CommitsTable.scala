@@ -1,4 +1,4 @@
-package com.tomykaira.uchronie
+package com.tomykaira.uchronie.ui
 
 import scala.swing.{Swing, Table}
 import javax.swing.table.DefaultTableModel
@@ -7,10 +7,11 @@ import javax.swing._
 import java.awt.datatransfer.{Transferable, DataFlavor}
 import javax.activation.{DataHandler, ActivationDataFlavor}
 import scala.swing.event.TableRowsSelected
-import com.tomykaira.uchronie.ui.{GraphState, CommitDecorator}
+import com.tomykaira.uchronie.TargetRange
+import com.tomykaira.uchronie.git.Operation
 
 
-class CommitsTable(fsm: FSM[GraphState]) extends Table {
+class CommitsTable(fsm: FSM[GraphState], dispatch: Operation => Unit) extends Table {
   sealed trait OperationState
   case class NoOperation() extends OperationState
   case class RowsSelected(range: TargetRange) extends OperationState
@@ -39,6 +40,14 @@ class CommitsTable(fsm: FSM[GraphState]) extends Table {
   val state = new FSM[OperationState] {
     state = NoOperation()
   }
+
+  state.onChange({
+    case Dropped(range, at) =>
+      state.changeStateTo(RowsSelected(range))
+      dispatch(Operation.MoveOp(range, at))
+    case _ =>
+  })
+
   def selectedRow: Option[Int] = {
     val row = peer.getSelectedRow
     if (row == -1) None else Some(row)
