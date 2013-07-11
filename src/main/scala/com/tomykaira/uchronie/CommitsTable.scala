@@ -2,13 +2,12 @@ package com.tomykaira.uchronie
 
 import scala.swing.{Swing, Table}
 import javax.swing.table.DefaultTableModel
-import com.tomykaira.constraintscala.{Binding, Constraint, FSM, StaticConstraint}
+import com.tomykaira.constraintscala.FSM
 import javax.swing._
 import java.awt.datatransfer.{Transferable, DataFlavor}
 import javax.activation.{DataHandler, ActivationDataFlavor}
 import scala.swing.event.TableRowsSelected
 import com.tomykaira.uchronie.ui.{GraphState, CommitDecorator}
-import com.tomykaira.uchronie.git.ArrangingGraph
 
 
 class CommitsTable(fsm: FSM[GraphState]) extends Table {
@@ -18,13 +17,10 @@ class CommitsTable(fsm: FSM[GraphState]) extends Table {
   case class Dragging(range: TargetRange) extends OperationState
   case class Dropped(range: TargetRange, at: TargetRange.Index) extends OperationState
 
-  // TODO: merge
-  private[this] val modifiedConstraint: Constraint[Boolean] = fsm.convert {
-    case GraphState.Clean(_) | GraphState.Modified(_) => true
-    case _ => false
+  fsm onChange {
+    case GraphState.Clean(_) | GraphState.Modified(_) => enabled = true
+    case _ => enabled = false
   }
-
-  Binding.enabled(this, modifiedConstraint)
 
   override lazy val model = super.model.asInstanceOf[DefaultTableModel]
   autoResizeMode = Table.AutoResizeMode.LastColumn
