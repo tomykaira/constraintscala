@@ -5,7 +5,7 @@ import javax.swing.border.BevelBorder
 import scala.swing.event.ButtonClicked
 import scala.sys.process.{ProcessIO, Process}
 import scala.io.Source
-import com.tomykaira.constraintscala.{Constraint, Binding, Transition, FSM}
+import com.tomykaira.constraintscala.{Constraint, Binding, FSM}
 import scala.concurrent.future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Success, Try}

@@ -3,8 +3,6 @@ package com.tomykaira.uchronie
 import org.scalatest.{BeforeAndAfter, FunSpec}
 import org.scalatest.matchers.ShouldMatchers
 import org.eclipse.jgit.revwalk.RevCommit
-import org.eclipse.jgit.lib.Constants
-import com.tomykaira.uchronie.git.Commit
 
 class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
