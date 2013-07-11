@@ -1,6 +1,6 @@
 package com.tomykaira.constraintscala
 
-import scala.swing.{UIElement, Label, TextComponent}
+import scala.swing.{Component, UIElement, Label, TextComponent}
 
 object Binding {
   def text(field: TextComponent, constraint: Notifier[Any]) {
@@ -13,5 +13,9 @@ object Binding {
 
   def background(field: UIElement, constraint: Notifier[java.awt.Color]) {
     constraint.onChange(field.background = _)
+  }
+
+  def enabled(field: Component, constraint: Notifier[Boolean]) {
+    constraint.onChange(field.enabled = _)
   }
 }

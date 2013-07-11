@@ -6,23 +6,25 @@ import scala.swing.Dialog
 import scala.annotation.tailrec
 import com.tomykaira.uchronie.Main.{ProcessingState, Stopped, Working}
 import com.tomykaira.constraintscala.FSM
+import com.tomykaira.uchronie.ui.GraphState.Editing
 
-class EditManager(graph: ArrangingGraph.Clean, range: TargetRange, processingFSM: FSM[ProcessingState]) {
-  def abort: ArrangingGraph =
+class EditManager(graph: ArrangingGraph.Clean, fsm: FSM[GraphState], range: TargetRange) {
+  def abort: ArrangingGraph.Clean =
     graph.rollback
 
-  def finish(done: IncrementalEditor.Done): ArrangingGraph =
+  def finish(done: IncrementalEditor.Done): ArrangingGraph.Clean =
     ArrangingGraph.renew(graph, done.head)
 
+  // TODO: do we need processing status?
   def processing[A](f: => A): A = {
-    processingFSM.changeStateTo(Working())
+    // fsm.changeState { case GraphState.EditWaiting(g) => GraphState.EditProcessing(g) }
     val result = f
-    processingFSM.changeStateTo(Stopped())
+    // fsm.changeState { case GraphState.EditProcessing(g) => GraphState.EditWaiting(g) }
     result
   }
 
   @tailrec
-  private def loop(next: IncrementalEditor): ArrangingGraph = next match {
+  private def loop(next: IncrementalEditor): ArrangingGraph.Clean = next match {
     case done: IncrementalEditor.Done =>
       finish(done)
     case going: IncrementalEditor.Going =>
@@ -54,23 +56,12 @@ class EditManager(graph: ArrangingGraph.Clean, range: TargetRange, processingFSM
       initial = 0
     )
 
-  def run: ArrangingGraph = {
+  def run: ArrangingGraph.Clean = {
     val going = processing { graph.startEdit(range.end) }
 
     openEditWaitingDialog match {
       case Dialog.Result.Yes => loop(going)
       case Dialog.Result.No => abort
-    }
-  }
-}
-
-object EditManager {
-  def apply(graph: ArrangingGraph, range: TargetRange, processingFSM: FSM[ProcessingState]): Option[EditManager] = {
-    graph match {
-      case clean: ArrangingGraph.Clean =>
-        Some(new EditManager(clean, range, processingFSM))
-      case _: ArrangingGraph.Modified =>
-        None
     }
   }
 }

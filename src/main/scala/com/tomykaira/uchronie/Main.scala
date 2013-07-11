@@ -2,9 +2,7 @@ package com.tomykaira.uchronie
 
 import scala.swing._
 import org.eclipse.jgit.lib.ObjectId
-import com.tomykaira.constraintscala.{FSM, StaticConstraint}
-import org.eclipse.jgit.revwalk.RevCommit
-import scala.annotation.tailrec
+import com.tomykaira.constraintscala.FSM
 import javax.swing.border.EmptyBorder
 import akka.actor.{Props, ActorSystem}
 import com.tomykaira.uchronie.git._
@@ -13,11 +11,10 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.swing.event.ButtonClicked
-import com.tomykaira.uchronie.git.Commit
-import scala.Some
 import javax.swing.text.DefaultCaret
-import com.tomykaira.uchronie.ui.{DiffDecorator, EditManager, CommitDecorator, OperationView}
+import com.tomykaira.uchronie.ui._
+import scala.swing.event.ButtonClicked
+import com.tomykaira.uchronie.ui.CommitDecorator
 
 object Main extends SimpleSwingApplication {
   val system = ActorSystem("Worker")
@@ -30,44 +27,42 @@ object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
     title = "Uchronie"
 
-    val graphConstraint = new StaticConstraint[ArrangingGraph](ArrangingGraph.startUp(repository, start, end))
-
-    val processingFSM = new FSM[ProcessingState] {
-      state = Stopped()
+    val fsm = new FSM[GraphState] {
+      state = GraphState.Clean(ArrangingGraph.startUp(repository, start, end))
     }
 
-    val onApply = { () =>
-      implicit val timeout = Timeout(60 seconds)
+    fsm.onChange {
+      case GraphState.Applying(graph) =>
+        implicit val timeout = Timeout(60.seconds)
 
-      processingFSM.changeStateTo(Working())
-
-      val future = ask(actor, graphConstraint.get).mapTo[ArrangingGraph]
-      future.onComplete {
-        case_ =>
-          processingFSM.changeStateTo(Stopped())
-      }
-      future.onSuccess {
-        case g: ArrangingGraph => graphConstraint.update(g)
-      }
-      future.onFailure {
-        case err => Dialog.showMessage(title = "Error", message = err.getMessage)
-      }
+        val future = ask(actor, graph).mapTo[ArrangingGraph]
+        future.onSuccess {
+          case g: ArrangingGraph => fsm.changeStateTo(GraphState(g))
+        }
+        future.onFailure {
+          case err =>
+            fsm.changeStateTo(GraphState.Modified(graph))
+            Dialog.showMessage(title = "Error", message = err.getMessage)
+        }
+      case _ =>
     }
 
     def dispatch(op: Operation) {
-      graphConstraint.update(graphConstraint.get.transit(op))
+      fsm changeState {
+        case s @ (GraphState.Modified(_) | GraphState.Clean(_)) =>
+          GraphState.Modified(s.graph.transit(op))
+      }
     }
 
-    val commitsTable = new CommitsTable(graphConstraint)
-    processingFSM.onChange {
-      case Working() => commitsTable.enabled = false
-      case Stopped() => commitsTable.enabled = true
-    }
+    val commitsTable = new CommitsTable(fsm)
 
     val onEdit = { range: TargetRange =>
-      EditManager(graphConstraint.get, range, processingFSM) match {
-        case Some(manager) => graphConstraint.update(manager.run)
-        case None =>
+      fsm.get match {
+        case GraphState.Clean(graph) =>
+          fsm.changeStateTo(GraphState.Editing(graph))
+          val result = new EditManager(graph, fsm, range).run
+          fsm.changeStateTo(GraphState.Clean(result))
+        case _ =>
           Dialog.showMessage(title = "Edit commit",
             message = "There are not applied operation(s).\nApply all changes before editing")
       }
@@ -82,12 +77,12 @@ object Main extends SimpleSwingApplication {
 
     val changedFiles = new DiffList(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        graphConstraint.get.rowsToCommits(range.list) flatMap {c => new CommitDecorator(c).diff(repository) }
+        fsm.get.graph.rowsToCommits(range.list) flatMap {c => new CommitDecorator(c).diff(repository) }
       case _ => Nil
     }))
     val comment = new CommentArea(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        Some((graphConstraint.get, range))
+        Some((fsm.get.graph, range))
       case _ => None
     }))
     comment.messageFSM.onChange({
@@ -140,6 +135,7 @@ object Main extends SimpleSwingApplication {
           }
         }
         contents += new Button("Edit") {
+          tooltip = "Edit is available when you have no pending operations"
           reactions += {
             case e: ButtonClicked => currentRange.foreach { range =>
               onEdit(range)
@@ -160,12 +156,12 @@ object Main extends SimpleSwingApplication {
       })
 
     contents = new BorderPanel() {
-      add(new OperationView(processingFSM, graphConstraint, onApply), BorderPanel.Position.North)
+      add(new OperationView(fsm), BorderPanel.Position.North)
       add(gitView, BorderPanel.Position.Center)
     }
 
     override def closeOperation() {
-      repository.resetToOriginalBranch(graphConstraint.get.last)
+      repository.resetToOriginalBranch(fsm.get.graph.last)
       super.closeOperation()
     }
   }

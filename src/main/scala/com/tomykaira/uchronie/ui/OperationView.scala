@@ -1,20 +1,22 @@
 package com.tomykaira.uchronie.ui
 
-import com.tomykaira.constraintscala.{StaticConstraint, FSM}
-import com.tomykaira.uchronie.Main.{Stopped, Working, ProcessingState}
+import com.tomykaira.constraintscala.{Constraint, Binding, FSM}
 import scala.swing._
 import java.awt.Dimension
-import com.tomykaira.uchronie.git.{ArrangingGraph, Operation}
+import com.tomykaira.uchronie.git.Operation
 import scala.swing.event.ButtonClicked
 
-class OperationView(processingFSM: FSM[ProcessingState],
-    graph: StaticConstraint[ArrangingGraph],
-    onApply: () => Any) extends BorderPanel {
+class OperationView(fsm: FSM[GraphState]) extends BorderPanel {
+
+  private[this] val modifiedConstraint: Constraint[Boolean] = fsm.convert {
+    case _: GraphState.Modified => true
+    case _ => false
+  }
 
   val list = new ScrollPane() {
     contents = new ListView[Operation] {
-      graph.onChange { g =>
-        listData = g.history
+      fsm.onChange { state =>
+        listData = state.graph.history
         repaint()
       }
     }
@@ -27,17 +29,11 @@ class OperationView(processingFSM: FSM[ProcessingState],
     minimumSize = preferredSize
     tooltip = "Apply stacked changes to the repository"
 
-    graph.onChange {
-      case _: ArrangingGraph.Modified => enabled = true
-      case _: ArrangingGraph.Clean => enabled = false
-    }
+    Binding.enabled(this, modifiedConstraint)
 
     reactions += {
       case e: ButtonClicked =>
-        graph.get match {
-          case m: ArrangingGraph.Modified => onApply()
-          case _: ArrangingGraph.Clean =>
-        }
+        fsm changeState { case GraphState.Modified(g) => GraphState.Applying(g) }
     }
   }
 
@@ -47,25 +43,19 @@ class OperationView(processingFSM: FSM[ProcessingState],
     minimumSize = preferredSize
     tooltip = "Undo a change"
 
-    graph.onChange {
-      case _: ArrangingGraph.Modified => enabled = true
-      case _: ArrangingGraph.Clean => enabled = false
-    }
+    Binding.enabled(this, modifiedConstraint)
 
     reactions += {
       case e: ButtonClicked => {
-        graph.get match {
-          case m: ArrangingGraph.Modified => graph.update(m.previous)
-          case _: ArrangingGraph.Clean =>
-        }
+        fsm changeState { case GraphState.Modified(g) => GraphState(g.previous) }
       }
     }
   }
 
   val progressBar = new ProgressBar {
-    processingFSM.onChange {
-      case Working() => indeterminate = true
-      case Stopped() => indeterminate = false
+    fsm.onChange {
+      case GraphState.Applying(_) | GraphState.Editing(_) => indeterminate = true
+      case GraphState.Clean(_) | GraphState.Modified(_) => indeterminate = false
     }
   }
 

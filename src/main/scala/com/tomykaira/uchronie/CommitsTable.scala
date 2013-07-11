@@ -2,21 +2,29 @@ package com.tomykaira.uchronie
 
 import scala.swing.{Swing, Table}
 import javax.swing.table.DefaultTableModel
-import com.tomykaira.constraintscala.{FSM, StaticConstraint}
+import com.tomykaira.constraintscala.{Binding, Constraint, FSM, StaticConstraint}
 import javax.swing._
 import java.awt.datatransfer.{Transferable, DataFlavor}
 import javax.activation.{DataHandler, ActivationDataFlavor}
 import scala.swing.event.TableRowsSelected
-import com.tomykaira.uchronie.ui.CommitDecorator
+import com.tomykaira.uchronie.ui.{GraphState, CommitDecorator}
 import com.tomykaira.uchronie.git.ArrangingGraph
 
 
-class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
+class CommitsTable(fsm: FSM[GraphState]) extends Table {
   sealed trait OperationState
   case class NoOperation() extends OperationState
   case class RowsSelected(range: TargetRange) extends OperationState
   case class Dragging(range: TargetRange) extends OperationState
   case class Dropped(range: TargetRange, at: TargetRange.Index) extends OperationState
+
+  // TODO: merge
+  private[this] val modifiedConstraint: Constraint[Boolean] = fsm.convert {
+    case GraphState.Clean(_) | GraphState.Modified(_) => true
+    case _ => false
+  }
+
+  Binding.enabled(this, modifiedConstraint)
 
   override lazy val model = super.model.asInstanceOf[DefaultTableModel]
   autoResizeMode = Table.AutoResizeMode.LastColumn
@@ -49,20 +57,20 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
     }
   }
 
-  graph.onChange({ arrangingGraph =>
+  fsm onChange { state =>
     Swing.onEDT {
       val oldSelected = selectedRow
       for (i <- 0 to model.getRowCount - 1) {
         model.removeRow(0)
       }
-      arrangingGraph.commits.foreach { commit =>
+      state.graph.commits.foreach { commit =>
         model.addRow(new CommitDecorator(commit).tableRow)
       }
       oldSelected.foreach(row =>
         if (row < peer.getRowCount)
           peer.setRowSelectionInterval(row, row))
     }
-  })
+  }
 
   // Drag & drop set of commits
   peer.getSelectionModel.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
