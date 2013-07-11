@@ -2,7 +2,7 @@ package com.tomykaira.uchronie.ui
 
 import scala.swing.{Swing, Table}
 import javax.swing.table.DefaultTableModel
-import com.tomykaira.constraintscala.FSM
+import com.tomykaira.constraintscala.{Constraint, FSM}
 import javax.swing._
 import java.awt.datatransfer.{Transferable, DataFlavor}
 import javax.activation.{DataHandler, ActivationDataFlavor}
@@ -37,7 +37,7 @@ class CommitsTable(fsm: FSM[GraphState], dispatch: Operation => Unit) extends Ta
 
   override protected def editor(row: Int, column: Int) = null
 
-  val state = new FSM[OperationState] {
+  private[this] val state = new FSM[OperationState] {
     state = NoOperation()
   }
 
@@ -48,7 +48,12 @@ class CommitsTable(fsm: FSM[GraphState], dispatch: Operation => Unit) extends Ta
     case _ =>
   })
 
-  def selectedRow: Option[Int] = {
+  val currentRange: Constraint[Option[TargetRange]] = state.convert {
+    case RowsSelected(range) => Some(range)
+    case _ => None
+  }
+
+  private def selectedRow: Option[Int] = {
     val row = peer.getSelectedRow
     if (row == -1) None else Some(row)
   }
@@ -84,7 +89,7 @@ class CommitsTable(fsm: FSM[GraphState], dispatch: Operation => Unit) extends Ta
   peer.setDragEnabled(true)
 
   class CommitTransferHandler extends TransferHandler {
-    private val flavor = new ActivationDataFlavor(classOf[Object], DataFlavor.javaJVMLocalObjectMimeType, "Part of ArrangingGraph object")
+    private[this] val flavor = new ActivationDataFlavor(classOf[Object], DataFlavor.javaJVMLocalObjectMimeType, "Part of ArrangingGraph object")
 
     override def createTransferable(c: JComponent): Transferable = {
       state.changeState({ case RowsSelected(range) => Dragging(range) })

@@ -2,17 +2,17 @@ package com.tomykaira.uchronie.ui
 
 import javax.swing.text.DefaultCaret
 import scala.swing.{Orientation, SplitPane, TextArea}
-import com.tomykaira.constraintscala.FSM
-import com.tomykaira.uchronie.GitRepository
+import com.tomykaira.constraintscala.{Constraint, FSM}
+import com.tomykaira.uchronie.{TargetRange, GitRepository}
 import com.tomykaira.uchronie.ui.SwingHelper._
 
-class ChangesView(fsm: FSM[GraphState], commitsTable: CommitsTable) extends SplitPane {
+class ChangesView(fsm: FSM[GraphState], currentRange: Constraint[Option[TargetRange]]) extends SplitPane {
   def repository: GitRepository = fsm.get.graph.repository
 
-  val changedFiles = new DiffList(commitsTable.state.convert({
-    case commitsTable.RowsSelected(range) =>
+  val changedFiles = new DiffList(currentRange.convert({
+    case Some(range) =>
       fsm.get.graph.rowsToCommits(range.list) flatMap {c => new CommitDecorator(c).diff(repository) }
-    case _ => Nil
+    case None => Nil
   }))
 
   val changes = new TextArea() {

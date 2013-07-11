@@ -63,35 +63,17 @@ object Main extends SimpleSwingApplication {
 
     val commitsTable = new CommitsTable(fsm, dispatch)
 
-
-    val comment = new CommentArea(commitsTable.state.convert({
-      case commitsTable.RowsSelected(range) =>
-        Some((fsm.get.graph, range))
-      case _ => None
-    }))
-    comment.messageFSM.onChange({
-      case comment.Committing(range, message) =>
-        if (range.isSingleton)
-          dispatch(Operation.RenameOp(range.start, message))
-        else
-          dispatch(Operation.SquashOp(range, Some(message)))
-      case _ =>
-    })
-
-    def currentRange: Option[TargetRange] = commitsTable.state.get match {
-        case commitsTable.RowsSelected(range) => Some(range)
-        case _ => None
-      }
+    val comment = new CommentArea(fsm, commitsTable.currentRange, dispatch)
 
     val commitsView = new BorderPanel {
       add(scrollable(commitsTable), BorderPanel.Position.Center)
-      add(new CommitsController(fsm, currentRange, dispatch), BorderPanel.Position.South)
+      add(new CommitsController(fsm, commitsTable.currentRange, dispatch), BorderPanel.Position.South)
     }
 
     val gitView = new SplitPane(Orientation.Vertical,
       new SplitPane(Orientation.Horizontal, commitsView, scrollable(comment)) {
         dividerLocation = 200
-      }, new ChangesView(fsm, commitsTable))
+      }, new ChangesView(fsm, commitsTable.currentRange))
 
     contents = new BorderPanel() {
       add(new OperationView(fsm), BorderPanel.Position.North)

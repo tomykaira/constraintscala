@@ -5,9 +5,10 @@ import com.tomykaira.constraintscala.{FSM, Constraint}
 import scala.swing.event.{Key, KeyReleased}
 import java.awt.event.InputEvent
 import javax.swing.text.DefaultCaret
-import com.tomykaira.uchronie.git.ArrangingGraph
+import com.tomykaira.uchronie.git.{Operation, ArrangingGraph}
+import com.tomykaira.uchronie.ui.GraphState
 
-class CommentArea(constraint: Constraint[Option[(ArrangingGraph, TargetRange)]]) extends TextArea {
+class CommentArea(fsm: FSM[GraphState], currentRange: Constraint[Option[TargetRange]], dispatch: Operation => Unit) extends TextArea {
   sealed trait MessageState
   case class NothingSelected() extends MessageState
   case class Selected(range: TargetRange, defaultMessage: String) extends MessageState
@@ -23,9 +24,9 @@ class CommentArea(constraint: Constraint[Option[(ArrangingGraph, TargetRange)]])
     state = NothingSelected()
   }
 
-  constraint.onChange({
-    case Some((graph, range)) =>
-      messageFSM.changeStateTo(Selected(range, graph.squashMessage(range.list)))
+  currentRange.onChange({
+    case Some(range) =>
+      messageFSM.changeStateTo(Selected(range, fsm.get.graph.squashMessage(range.list)))
     case None => messageFSM.changeStateTo(NothingSelected())
   })
 
@@ -40,6 +41,15 @@ class CommentArea(constraint: Constraint[Option[(ArrangingGraph, TargetRange)]])
     case Editing(_)  =>
       editable = true
       background = java.awt.Color.white
+  })
+
+  messageFSM.onChange({
+    case Committing(range, message) =>
+      if (range.isSingleton)
+        dispatch(Operation.RenameOp(range.start, message))
+      else
+        dispatch(Operation.SquashOp(range, Some(message)))
+    case _ =>
   })
 
   reactions += {

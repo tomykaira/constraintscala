@@ -1,26 +1,26 @@
 package com.tomykaira.uchronie.ui
 
-import scala.swing.{Button, GridPanel, BorderPanel}
+import scala.swing.{Button, GridPanel}
 import java.awt.Dimension
 import scala.swing.event.ButtonClicked
 import com.tomykaira.uchronie.git.Operation
 import com.tomykaira.uchronie.TargetRange
-import com.tomykaira.constraintscala.FSM
+import com.tomykaira.constraintscala.{Constraint, FSM}
 
-class CommitsController(fsm: FSM[GraphState], currentRange: => Option[TargetRange], dispatch: Operation => Unit)
+class CommitsController(fsm: FSM[GraphState], currentRange: Constraint[Option[TargetRange]], dispatch: Operation => Unit)
   extends GridPanel(1, 2) {
   maximumSize = new Dimension(Integer.MAX_VALUE, 50)
   contents += new Button("Squash") {
     reactions += {
       case e: ButtonClicked =>
-        currentRange.foreach { range =>
+        currentRange.get.foreach { range =>
           dispatch(Operation.SquashOp(range, None))
         }
     }
   }
   contents += new Button("Delete") {
     reactions += {
-      case e: ButtonClicked => currentRange.foreach { range =>
+      case e: ButtonClicked => currentRange.get.foreach { range =>
         range.list foreach {c => dispatch(Operation.DeleteOp(c))}
       }
     }
@@ -32,7 +32,7 @@ class CommitsController(fsm: FSM[GraphState], currentRange: => Option[TargetRang
       case _ => enabled = false
     }
     reactions += {
-      case e: ButtonClicked => currentRange.foreach { range =>
+      case e: ButtonClicked => currentRange.get.foreach { range =>
         fsm changeState {
           case GraphState.Clean(g) => GraphState.Editing(new EditManager(g, range))
         }
