@@ -8,27 +8,19 @@ import com.tomykaira.uchronie.Main.{ProcessingState, Stopped, Working}
 import com.tomykaira.constraintscala.FSM
 import com.tomykaira.uchronie.ui.GraphState.Editing
 
-class EditManager(graph: ArrangingGraph.Clean, fsm: FSM[GraphState], range: TargetRange) {
+class EditManager(val graph: ArrangingGraph.Clean, range: TargetRange) {
   def abort: ArrangingGraph.Clean =
     graph.rollback
 
   def finish(done: IncrementalEditor.Done): ArrangingGraph.Clean =
     ArrangingGraph.renew(graph, done.head)
 
-  // TODO: do we need processing status?
-  def processing[A](f: => A): A = {
-    // fsm.changeState { case GraphState.EditWaiting(g) => GraphState.EditProcessing(g) }
-    val result = f
-    // fsm.changeState { case GraphState.EditProcessing(g) => GraphState.EditWaiting(g) }
-    result
-  }
-
   @tailrec
   private def loop(next: IncrementalEditor): ArrangingGraph.Clean = next match {
     case done: IncrementalEditor.Done =>
       finish(done)
     case going: IncrementalEditor.Going =>
-      processing { going.continue } match {
+      going.continue match {
         case done: IncrementalEditor.Done => finish(done)
         case rest: IncrementalEditor.Going =>
           openConflictFixWaitingDialog match {
@@ -57,7 +49,7 @@ class EditManager(graph: ArrangingGraph.Clean, fsm: FSM[GraphState], range: Targ
     )
 
   def run: ArrangingGraph.Clean = {
-    val going = processing { graph.startEdit(range.end) }
+    val going = graph.startEdit(range.end)
 
     openEditWaitingDialog match {
       case Dialog.Result.Yes => loop(going)

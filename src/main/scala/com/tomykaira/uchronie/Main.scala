@@ -44,6 +44,9 @@ object Main extends SimpleSwingApplication {
             fsm.changeStateTo(GraphState.Modified(graph))
             Dialog.showMessage(title = "Error", message = err.getMessage)
         }
+      case GraphState.Editing(manager) =>
+        val result = manager.run
+        fsm.changeStateTo(GraphState.Clean(result))
       case _ =>
     }
 
@@ -55,18 +58,6 @@ object Main extends SimpleSwingApplication {
     }
 
     val commitsTable = new CommitsTable(fsm)
-
-    val onEdit = { range: TargetRange =>
-      fsm.get match {
-        case GraphState.Clean(graph) =>
-          fsm.changeStateTo(GraphState.Editing(graph))
-          val result = new EditManager(graph, fsm, range).run
-          fsm.changeStateTo(GraphState.Clean(result))
-        case _ =>
-          Dialog.showMessage(title = "Edit commit",
-            message = "There are not applied operation(s).\nApply all changes before editing")
-      }
-    }
 
     commitsTable.state.onChange({
       case commitsTable.Dropped(range, at) =>
@@ -136,9 +127,15 @@ object Main extends SimpleSwingApplication {
         }
         contents += new Button("Edit") {
           tooltip = "Edit is available when you have no pending operations"
+          fsm.onChange {
+            case GraphState.Clean(_) => enabled = true
+            case _ => enabled = false
+          }
           reactions += {
             case e: ButtonClicked => currentRange.foreach { range =>
-              onEdit(range)
+              fsm changeState {
+                case GraphState.Clean(g) => GraphState.Editing(new EditManager(g, range))
+              }
             }
           }
         }

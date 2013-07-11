@@ -15,5 +15,7 @@ object GraphState {
   case class Clean(graph: ArrangingGraph.Clean) extends GraphState
   case class Modified(graph: ArrangingGraph.Modified) extends GraphState
   case class Applying(graph: ArrangingGraph.Modified) extends GraphState
-  case class Editing(graph: ArrangingGraph.Clean) extends GraphState
+  case class Editing(manager: EditManager) extends GraphState{
+    val graph: ArrangingGraph.Clean = manager.graph
+  }
 }
