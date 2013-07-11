@@ -47,17 +47,10 @@ object Main extends SimpleSwingApplication {
       case _ =>
     }
 
-    def setCommentOnNeed(op: Operation): Operation = (op, comment.messageFSM.get) match {
-      case (Operation.SquashOp(range, None), comment.Editing(_)) =>
-        Operation.SquashOp(range, Some(comment.text))
-      case _ => op
-    }
-
     def dispatch(op: Operation) {
       fsm changeState {
         case s @ (GraphState.Modified(_) | GraphState.Clean(_)) =>
-          val commented = setCommentOnNeed(op)
-          GraphState.Modified(s.graph.transit(commented))
+          GraphState.Modified(s.graph.transit(op))
       }
     }
 

@@ -1,12 +1,12 @@
-package com.tomykaira.uchronie
+package com.tomykaira.uchronie.ui
 
 import scala.swing.TextArea
 import com.tomykaira.constraintscala.{FSM, Constraint}
 import scala.swing.event.{Key, KeyReleased}
 import java.awt.event.InputEvent
 import javax.swing.text.DefaultCaret
-import com.tomykaira.uchronie.git.{Operation, ArrangingGraph}
-import com.tomykaira.uchronie.ui.GraphState
+import com.tomykaira.uchronie.git.Operation
+import com.tomykaira.uchronie.TargetRange
 
 class CommentArea(fsm: FSM[GraphState], currentRange: Constraint[Option[TargetRange]], dispatch: Operation => Unit) extends TextArea {
   sealed trait MessageState
@@ -20,7 +20,7 @@ class CommentArea(fsm: FSM[GraphState], currentRange: Constraint[Option[TargetRa
   tooltip = "Edit and Ctrl+Enter to update the commit message"
   peer.getCaret.asInstanceOf[DefaultCaret].setUpdatePolicy(DefaultCaret.UPDATE_WHEN_ON_EDT)
 
-  val messageFSM = new FSM[MessageState] {
+  private[this] val messageFSM = new FSM[MessageState] {
     state = NothingSelected()
   }
 
