@@ -25,7 +25,7 @@ object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
     title = "Uchronie"
 
-    val graph = repository.listCommits(start, end)
+    val graph = new ArrangingGraph(repository, start, end)
     val graphConstraint = new StaticConstraint[ArrangingGraph](graph)
     val progressBar = new ProgressBar { indeterminate = false }
 

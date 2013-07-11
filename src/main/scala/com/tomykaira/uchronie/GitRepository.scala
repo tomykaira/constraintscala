@@ -32,11 +32,11 @@ class GitRepository(rootPath: File) {
   if (command.getResult.getStatus != CheckoutResult.Status.OK)
     throw new RuntimeException("Failed to initialize work branch")
 
-  def listCommits(start: ObjectId, end: ObjectId): ArrangingGraph = {
+  def listCommits(start: ObjectId, end: ObjectId): List[RevCommit] = {
     val walk = new RevWalk(repository)
     walk.markStart(walk.parseCommit(end))
     walk.markUninteresting(walk.parseCommit(start))
-    ArrangingGraph(this, start, walk.iterator().asScala.toList)
+    walk.iterator().asScala.toList
   }
 
   def abbreviate(objectId: AnyObjectId): AbbreviatedObjectId =

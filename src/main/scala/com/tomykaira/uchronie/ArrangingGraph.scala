@@ -2,18 +2,15 @@ package com.tomykaira.uchronie
 
 import org.eclipse.jgit.lib.{Constants, ObjectId}
 import scala.annotation.tailrec
-import com.tomykaira.uchronie.git.Commit
-import org.eclipse.jgit.revwalk.RevCommit
+import com.tomykaira.uchronie.git.{CommitThread, ThreadTransition, Commit}
 
-object ArrangingGraph {
-  def apply(repository: GitRepository, start: ObjectId, commits: List[RevCommit]): ArrangingGraph = {
-    new ArrangingGraph(repository, start, commits.map(Commit.revCommitToRawCommit))
-  }
-}
+class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val last: ObjectId) {
+  type OperationResult = Either[String, ArrangingGraph]
 
-class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val commits: List[Commit]) {
   private lazy val startCommit: Commit = repository.toCommit(start)
-  private lazy val last = commits.headOption.getOrElse(startCommit)
+  private lazy val lastCommit: Commit = repository.toCommit(last)
+  lazy val commits: List[Commit.Raw] = repository.listCommits(start, last).map(Commit.Raw)
+  val transition: ThreadTransition = new ThreadTransition(CommitThread.fromCommits(commits))
 
   rollback()
 
@@ -28,7 +25,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     repository.resetHard(last)
   }
 
-  def updateComment(target: Commit, message: String): Either[String, ArrangingGraph] = {
+  def updateComment(target: Commit, message: String): OperationResult = {
     for { // FIXME
       index <- (commits.indexOf(target) match {
         case -1 => Left("Target " + target.getName + " not included in current list")
@@ -48,7 +45,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
 
   def contains(range: GraphRange): Boolean = range.graph == this
 
-  def reorder(range: GraphRange, insertTo: Int): Either[String, ArrangingGraph] = {
+  def reorder(range: GraphRange, insertTo: Int): OperationResult = {
     if (range.isEmpty) return Right(this)
 
     val newOrder = commits.take(insertTo).filterNot(range.commits contains _) ++
@@ -60,7 +57,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     finishUpdate(applyCommits(common, todo))
   }
 
-  def squash(range: GraphRange, newMessage: Option[String]): Either[String, ArrangingGraph] = {
+  def squash(range: GraphRange, newMessage: Option[String]): OperationResult = {
     if(range.commits.size <= 1) return Right(this)
     if(!isSequentialSlice(range.commits))
       return Left("Only sequential commits can be squashed.\nReorder commits before squashing")
@@ -75,7 +72,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
     finishUpdate(applyCommits(newHead, orphans.reverse))
   }
 
-  def delete(range: GraphRange): Either[String, ArrangingGraph] = {
+  def delete(range: GraphRange): OperationResult = {
     if (range.isEmpty) return Right(this)
 
     val newCommits = commits.filterNot(range.commits contains _)
@@ -96,7 +93,7 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
       return Left(range)
     @tailrec
     def loop(commits: List[Commit]): Either[GraphRange, ArrangingGraph] = commits match {
-      case Nil => Right(repository.listCommits(start, repository.resolve(Constants.HEAD).get))
+      case Nil => Right(new ArrangingGraph(repository, start, repository.resolve(Constants.HEAD).get))
       case x :: xs =>
         repository.cherryPick(x) match {
           case Left(err) => Left(new GraphRange(this, xs.reverse))
@@ -123,13 +120,13 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
       (prev, c) => prev.right.flatMap(_ => repository.cherryPick(c).right.map[Commit](rev => rev)))
   }
 
-  private def finishUpdate(newLast: Either[CherryPickFailure, Commit]): Either[String, ArrangingGraph] = {
+  private def finishUpdate(newLast: Either[CherryPickFailure, Commit]): OperationResult = {
     newLast match {
       case Left(CherryPickFailure(commit)) =>
         rollback()
         Left("Cherry-pick failed at " + commit.getName)
       case Right(c) =>
-        Right(repository.listCommits(start, c))
+        Right(new ArrangingGraph(repository, start, c))
     }
   }
 
@@ -142,11 +139,11 @@ class ArrangingGraph(val repository: GitRepository, val start: ObjectId, val com
 }
 
 class GraphRange(val graph: ArrangingGraph, val commits: List[Commit]) {
-  def squash(newMessage: Option[String]): Either[String, ArrangingGraph] = {
+  def squash(newMessage: Option[String]): graph.OperationResult = {
     graph squash(this, newMessage)
   }
 
-  def delete(): Either[String, ArrangingGraph] = {
+  def delete(): graph.OperationResult = {
     graph.delete(this)
   }
 

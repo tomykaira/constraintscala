@@ -15,7 +15,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
 
   trait GraphUtilities {
     val commits: List[Commit]
-    lazy val graph = repository.listCommits(commits.head, commits.last)
+    lazy val graph = new ArrangingGraph(repository, commits.head, commits.last)
     lazy val first = commits(0)
     lazy val second = commits(1)
     lazy val third = commits(2)
@@ -58,7 +58,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
     }
     it("should inherit range after updated") {
       new Fixture {
-        val short = repository.listCommits(first, third)
+        val short = new ArrangingGraph(repository, first, third)
         val result = short.updateComment(second, "New").right.value
         messages(result) should equal (List("3rd", "New"))
       }
@@ -111,7 +111,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
       new Fixture {
         val range = graph.selectRange(Seq(2))
         val newCommits = graph.reorder(range, 0).right.value.commits
-        newCommits(0).getParent(0) should equal (newCommits(1).asInstanceOf[Commit.Raw].raw)
+        newCommits(0).getParent(0) should equal (newCommits(1).raw)
       }
     }
     it("should reorder two commits") {
@@ -134,7 +134,7 @@ class ArrangingGraphSpec extends FunSpec with BeforeAndAfter with ShouldMatchers
         createCommit("A", "2st", "2st"),
         createCommit("A", "3st", "3st")
       )
-      val graph = repository.listCommits(commits.head, commits.last)
+      val graph = new ArrangingGraph(repository, commits.head, commits.last)
       val range = graph.selectRange(Seq(0))
       val result = graph.reorder(range, 2)
       result should be ('left)
