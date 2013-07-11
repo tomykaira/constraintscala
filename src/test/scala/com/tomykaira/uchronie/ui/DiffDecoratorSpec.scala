@@ -1,20 +1,24 @@
-package com.tomykaira.uchronie
+package com.tomykaira.uchronie.ui
 
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
+import com.tomykaira.uchronie.GitSpecHelper
 
-class DiffListDecoratorSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
+class DiffDecoratorSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
     initRepo()
   }
 
-  describe("fullDiff") {
+  describe("All") {
+    it("should take prefix") {
+      DiffDecorator.All("1295235", List()).name should equal ("ALL of 1295235")
+    }
     it("should include diff of all files") {
       firstCommit
       addFile("test", "goodbye")
       addFile("test2", "Hello2")
       val commit = doCommit("Two files")
-      val diff = new DiffListDecorator(repository.diff(commit)).fullDiff(repository)
+      val diff = DiffDecorator.All("", repository.diff(commit)).fullDiff(repository)
       diff should include ("a/test")
       diff should include ("b/test")
       diff should include ("b/test2")

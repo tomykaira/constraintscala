@@ -7,13 +7,16 @@ import javax.swing._
 import java.awt.datatransfer.{Transferable, DataFlavor}
 import javax.activation.{DataHandler, ActivationDataFlavor}
 import scala.swing.event.TableRowsSelected
+import com.tomykaira.uchronie.ui.CommitDecorator
+import com.tomykaira.uchronie.git.ArrangingGraph
+
 
 class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
   sealed trait OperationState
   case class NoOperation() extends OperationState
-  case class RowsSelected(range: GraphRange) extends OperationState
-  case class Dragging(range: GraphRange) extends OperationState
-  case class Dropped(range: GraphRange, at: Int) extends OperationState
+  case class RowsSelected(range: TargetRange) extends OperationState
+  case class Dragging(range: TargetRange) extends OperationState
+  case class Dropped(range: TargetRange, at: TargetRange.Index) extends OperationState
 
   override lazy val model = super.model.asInstanceOf[DefaultTableModel]
   autoResizeMode = Table.AutoResizeMode.LastColumn
@@ -24,6 +27,8 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
   model addColumn "Comment"
 
   peer.getColumnModel.getColumn(0).setMaxWidth(100)
+
+  peer.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION)
 
   override protected def editor(row: Int, column: Int) = null
 
@@ -37,11 +42,9 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
 
   reactions += {
     case _: TableRowsSelected => {
-      val range = peer.getSelectedRows
-      if (range.isEmpty) {
-        state.changeStateTo(NoOperation())
-      } else {
-        state.changeStateTo(RowsSelected(graph.get.selectRange(range)))
+      peer.getSelectedRows.toList match {
+        case Nil => state.changeStateTo(NoOperation())
+        case list => state.changeStateTo(RowsSelected(TargetRange(list)))
       }
     }
   }
@@ -52,8 +55,9 @@ class CommitsTable(graph: StaticConstraint[ArrangingGraph]) extends Table {
       for (i <- 0 to model.getRowCount - 1) {
         model.removeRow(0)
       }
-      arrangingGraph.commits.foreach(commit =>
-        model addRow new CommitDecorator(commit).tableRow(arrangingGraph.repository))
+      arrangingGraph.commits.foreach { commit =>
+        model.addRow(new CommitDecorator(commit).tableRow)
+      }
       oldSelected.foreach(row =>
         if (row < peer.getRowCount)
           peer.setRowSelectionInterval(row, row))

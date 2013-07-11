@@ -14,47 +14,48 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.swing.event.ButtonClicked
-import com.tomykaira.uchronie.git.UpdateComment
-import com.tomykaira.uchronie.git.Reorder
+import com.tomykaira.uchronie.git.Commit
 import scala.Some
 import javax.swing.text.DefaultCaret
+import com.tomykaira.uchronie.ui.{DiffDecorator, EditManager, CommitDecorator, OperationView}
 
 object Main extends SimpleSwingApplication {
   val system = ActorSystem("Worker")
   val actor = system.actorOf(Props[Worker])
 
+  sealed trait ProcessingState
+  case class Working() extends ProcessingState
+  case class Stopped() extends ProcessingState
+
   def top: Frame = new MainFrame() {
     title = "Uchronie"
 
-    val graph = repository.listCommits(start, end)
-    val graphConstraint = new StaticConstraint[ArrangingGraph](graph)
-    val progressBar = new ProgressBar { indeterminate = false }
+    val graphConstraint = new StaticConstraint[ArrangingGraph](ArrangingGraph.startUp(repository, start, end))
 
-    sealed trait ProcessingState
-    case class Working() extends ProcessingState
-    case class Stopped() extends ProcessingState
     val processingFSM = new FSM[ProcessingState] {
       state = Stopped()
     }
-    processingFSM.onChange {
-      case Working() => progressBar.indeterminate = true
-      case Stopped() => progressBar.indeterminate = false
-    }
 
-    def dispatch(c: Command) {
+    val onApply = { () =>
       implicit val timeout = Timeout(60 seconds)
+
       processingFSM.changeStateTo(Working())
-      val future = ask(actor, c).mapTo[ArrangingGraph]
+
+      val future = ask(actor, graphConstraint.get).mapTo[ArrangingGraph]
       future.onComplete {
         case_ =>
           processingFSM.changeStateTo(Stopped())
       }
       future.onSuccess {
-        case g => graphConstraint.update(g)
+        case g: ArrangingGraph => graphConstraint.update(g)
       }
       future.onFailure {
         case err => Dialog.showMessage(title = "Error", message = err.getMessage)
       }
+    }
+
+    def dispatch(op: Operation) {
+      graphConstraint.update(graphConstraint.get.transit(op))
     }
 
     val commitsTable = new CommitsTable(graphConstraint)
@@ -63,99 +64,44 @@ object Main extends SimpleSwingApplication {
       case Stopped() => commitsTable.enabled = true
     }
 
-    sealed trait EditState
-    case class NotEditing() extends EditState
-    case class EditCommit(commit: RevCommit) extends EditState
-    case class EditDone(commit: RevCommit) extends EditState
-    case class Rebasing(range: GraphRange) extends EditState
-    case class RebaseFailed(range: GraphRange) extends EditState
-    val editFSM = new FSM[EditState] {
-      state = NotEditing()
-    }
-    def openEditWaitingDialog: Dialog.Result.Value =
-      Dialog.showOptions(
-        title = "Edit commit",
-        message = "Edit files with editor and commit everything.\nThe working tree must be clean to proceed.",
-        entries = Seq("Done", "Abort"),
-        initial = 0
-      )
-    def openConflictFixWaitingDialog: Dialog.Result.Value =
-      Dialog.showOptions(
-        title = "Edit commit",
-        message = "Files are conflicted while rebasing.  Fix conflicts and commit all.",
-        entries = Seq("Done", "Abort"),
-        initial = 0
-      )
-
-    editFSM.onChange {
-      case _: Rebasing => processingFSM.changeStateTo(Working())
-      case _ => processingFSM.changeStateTo(Stopped())
-    }
-
-    @tailrec
-    def pickInteractively(orphans: GraphRange) {
-      editFSM.changeStateTo(Rebasing(orphans))
-      orphans.applyInteractively match {
-        case Left(rest) =>
-          editFSM.changeState({ case _: Rebasing => RebaseFailed(rest) })
-          openConflictFixWaitingDialog match {
-            case Dialog.Result.Yes =>
-              pickInteractively(rest)
-            case _ =>
-              orphans.graph.rollback()
-              editFSM.changeStateTo(NotEditing())
-          }
-        case Right(newGraph) =>
-          editFSM.changeState { case _: Rebasing => NotEditing() }
-          graphConstraint.update(newGraph)
+    val onEdit = { range: TargetRange =>
+      EditManager(graphConstraint.get, range, processingFSM) match {
+        case Some(manager) => graphConstraint.update(manager.run)
+        case None =>
+          Dialog.showMessage(title = "Edit commit",
+            message = "There are not applied operation(s).\nApply all changes before editing")
       }
     }
-
-    editFSM.onChange({
-      case EditCommit(commit) =>
-        val currentGraph = graphConstraint.get
-        val orphans = currentGraph.startEdit(commit)
-        openEditWaitingDialog match {
-          case Dialog.Result.Yes =>
-            pickInteractively(orphans)
-          case _ =>
-            currentGraph.rollback()
-            editFSM.changeStateTo(NotEditing())
-        }
-      case _ =>
-    })
 
     commitsTable.state.onChange({
       case commitsTable.Dropped(range, at) =>
         commitsTable.state.changeStateTo(commitsTable.RowsSelected(range))
-        dispatch(Reorder(range.graph, range, at))
+        dispatch(Operation.MoveOp(range, at))
       case _ =>
     })
 
-    val changedFiles = new FileList(commitsTable.state.convert({
+    val changedFiles = new DiffList(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        range.first.map(c => repository.diff(c)).getOrElse(Nil)
+        graphConstraint.get.rowsToCommits(range.list) flatMap {c => new CommitDecorator(c).diff(repository) }
       case _ => Nil
     }))
     val comment = new CommentArea(commitsTable.state.convert({
       case commitsTable.RowsSelected(range) =>
-        Some(range)
+        Some((graphConstraint.get, range))
       case _ => None
     }))
     comment.messageFSM.onChange({
       case comment.Committing(range, message) =>
-        range.commits.length match {
-          case 1 => dispatch(UpdateComment(graphConstraint.get, range.first.get, message))
-          case n if n > 1 =>
-            dispatch(Squash(graphConstraint.get, range, Some(message)))
-        }
+        if (range.isSingleton)
+          dispatch(Operation.RenameOp(range.start, message))
+        else
+          dispatch(Operation.SquashOp(range, Some(message)))
       case _ =>
     })
     val changes = new TextArea() {
       editable = false
       changedFiles.selectedItem.onChange({
-        case Some(AllFiles(diffs)) => text = new DiffListDecorator(diffs).fullDiff(repository)
-        case Some(FileDiff(diff)) => text = new DiffDecorator(diff).formatted(repository)
+        case Some(decorator) => text = decorator.fullDiff(repository)
         case None =>
       })
       peer.getCaret.asInstanceOf[DefaultCaret].setUpdatePolicy(DefaultCaret.NEVER_UPDATE)
@@ -166,50 +112,46 @@ object Main extends SimpleSwingApplication {
         border = new EmptyBorder(0,0,0,0)
       }
 
+    def currentRange: Option[TargetRange] = commitsTable.state.get match {
+        case commitsTable.RowsSelected(range) => Some(range)
+        case _ => None
+      }
+
     val commitsController = new BorderPanel() {
       val buttons = new GridPanel(1, 2) {
         maximumSize = new Dimension(Integer.MAX_VALUE, 50)
         contents += new Button("Squash") {
           reactions += {
             case e: ButtonClicked =>
-              commitsTable.state.get match {
-                case commitsTable.RowsSelected(range) =>
-                  val newMessage = comment.messageFSM.get match {
-                    case comment.Editing(_) => Some(comment.text)
-                    case _ => None
-                  }
-                  dispatch(Squash(range.graph, range, newMessage))
-                case _ =>
+              currentRange.foreach { range =>
+                val newMessage = comment.messageFSM.get match {
+                  case comment.Editing(_) => Some(comment.text)
+                  case _ => None
+                }
+                dispatch(Operation.SquashOp(range, newMessage))
               }
           }
         }
         contents += new Button("Delete") {
           reactions += {
-            case e: ButtonClicked =>
-              commitsTable.state.get match {
-                case commitsTable.RowsSelected(range) =>
-                  dispatch(Delete(range.graph, range))
-                case _ =>
-              }
+            case e: ButtonClicked => currentRange.foreach { range =>
+              range.list foreach {c => dispatch(Operation.DeleteOp(c))}
+            }
           }
         }
         contents += new Button("Edit") {
           reactions += {
-            case e: ButtonClicked =>
-              commitsTable.state.get match {
-                case commitsTable.RowsSelected(range) =>
-                  range.first.foreach(commit => editFSM.changeState(NotEditing(), EditCommit(commit)))
-                case _ =>
-              }
+            case e: ButtonClicked => currentRange.foreach { range =>
+              onEdit(range)
+            }
           }
         }
       }
-      add(progressBar, BorderPanel.Position.North)
       add(scrollable(commitsTable), BorderPanel.Position.Center)
       add(buttons, BorderPanel.Position.South)
     }
 
-    contents = new SplitPane(Orientation.Vertical,
+    val gitView = new SplitPane(Orientation.Vertical,
       new SplitPane(Orientation.Horizontal, commitsController, scrollable(comment)) {
         dividerLocation = 200
       },
@@ -217,8 +159,13 @@ object Main extends SimpleSwingApplication {
         dividerLocation = 200
       })
 
+    contents = new BorderPanel() {
+      add(new OperationView(processingFSM, graphConstraint, onApply), BorderPanel.Position.North)
+      add(gitView, BorderPanel.Position.Center)
+    }
+
     override def closeOperation() {
-      repository.resetToOriginalBranch()
+      repository.resetToOriginalBranch(graphConstraint.get.last)
       super.closeOperation()
     }
   }

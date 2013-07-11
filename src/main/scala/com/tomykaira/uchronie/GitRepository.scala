@@ -10,6 +10,18 @@ import scala.Some
 import org.eclipse.jgit.treewalk.CanonicalTreeParser
 import org.eclipse.jgit.diff.{DiffFormatter, DiffEntry}
 
+class CherryPickFailure(repository: GitRepository, val original: RevCommit)
+  extends RuntimeException(s"Cherry pick failed at ${original.getName}") {
+
+  val message = s"""Cherry pick failed at ${original.getId.abbreviate(7).name}: ${original.getShortMessage}
+Conflicts:
+  ${repository.status.getConflicting}
+"""
+  override def getMessage: String = message
+}
+
+class NoHeadException extends RuntimeException("no HEAD revision")
+
 class GitRepository(rootPath: File) {
   val repository = new FileRepositoryBuilder().
     setGitDir(rootPath).
@@ -30,11 +42,11 @@ class GitRepository(rootPath: File) {
   if (command.getResult.getStatus != CheckoutResult.Status.OK)
     throw new RuntimeException("Failed to initialize work branch")
 
-  def listCommits(start: ObjectId, end: ObjectId): ArrangingGraph = {
+  def listCommits(start: ObjectId, end: ObjectId): List[RevCommit] = {
     val walk = new RevWalk(repository)
     walk.markStart(walk.parseCommit(end))
     walk.markUninteresting(walk.parseCommit(start))
-    new ArrangingGraph(this, start, walk.iterator().asScala.toList)
+    walk.iterator().asScala.toList
   }
 
   def abbreviate(objectId: AnyObjectId): AbbreviatedObjectId =
@@ -53,15 +65,21 @@ class GitRepository(rootPath: File) {
     new RevWalk(repository).parseCommit(id)
   }
 
+  def head: RevCommit =
+    resolve(Constants.HEAD) match {
+      case None => throw new NoHeadException
+      case Some(rev) => toCommit(rev)
+    }
+
   def git: Git = new Git(repository)
 
   def amendMessage(message: String): RevCommit =
     git.commit.setAmend(true).setMessage(message).call()
 
-  def cherryPick(commit: RevCommit): Either[String, RevCommit] with Product with Serializable = {
+  def cherryPick(commit: RevCommit): Either[CherryPickFailure, RevCommit] = {
     val result = git.cherryPick().include(commit.getId).call()
     if (result.getStatus != CherryPickResult.CherryPickStatus.OK)
-      Left("Cherry-pick failed at " + commit.getName)
+      Left(new CherryPickFailure(this, commit))
     else
       Right(result.getNewHead)
   }
@@ -91,8 +109,10 @@ class GitRepository(rootPath: File) {
     git.commit().setMessage(message).call()
   }
 
+  def status: Status = git.status.call
+
   def isClean: Boolean = {
-    val result = git.status.call
+    val result = status
     result.getAdded.isEmpty && result.getChanged.isEmpty && result.getRemoved.isEmpty && result.getMissing.isEmpty &&
       result.getModified.isEmpty && result.getConflicting.isEmpty
   }
@@ -104,11 +124,10 @@ class GitRepository(rootPath: File) {
     result
   }
 
-  def resetToOriginalBranch() {
-    resolve(Constants.HEAD) foreach { head =>
-      git.checkout().setName(originalBranch).call()
-      resetHard(head)
-      git.branchDelete().setBranchNames(workBranch).setForce(true).call()
-    }
+  def resetToOriginalBranch(last: ObjectId) {
+    resetHard(last)
+    git.checkout().setName(originalBranch).call()
+    resetHard(last)
+    git.branchDelete().setBranchNames(workBranch).setForce(true).call()
   }
 }

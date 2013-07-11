@@ -4,6 +4,7 @@ import org.scalatest.{BeforeAndAfter, FunSpec}
 import org.scalatest.matchers.ShouldMatchers
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.lib.Constants
+import com.tomykaira.uchronie.git.Commit
 
 class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -12,28 +13,28 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
 
   describe("list commits in range") {
     it("should respond 0 commits with the same ID") {
-      val commit = firstCommit
-      repository.listCommits(commit.getId, commit.getId).commits should have size 0
+      val commit: RevCommit = firstCommit
+      repository.listCommits(commit.getId, commit.getId) should have size 0
     }
 
     it("should respond 1 commit with two IDs in sequence") {
-      val commit1 = firstCommit
-      val commit2 = secondCommit
-      repository.listCommits(commit1.getId, commit2.getId).commits should contain (commit2)
+      val commit1: RevCommit = firstCommit
+      val commit2: RevCommit = secondCommit
+      repository.listCommits(commit1.getId, commit2.getId) should contain (commit2)
     }
 
     it("should respond 3 commits in reversed order") {
-      val commit1 = firstCommit
-      val commit2 = secondCommit
-      val commit3 = createCommit("foo", "bar", "commit3")
-      val commit4 = createCommit("foo", "baz", "commit4")
-      repository.listCommits(commit1.getId, commit4.getId).commits should equal (List(commit4, commit3, commit2))
+      val commit1: RevCommit = firstCommit
+      val commit2: RevCommit = secondCommit
+      val commit3: RevCommit = createCommit("foo", "bar", "commit3")
+      val commit4: RevCommit = createCommit("foo", "baz", "commit4")
+      repository.listCommits(commit1.getId, commit4.getId) should equal (List(commit4, commit3, commit2))
     }
   }
 
   describe("toCommit") {
     it("should convert ObjectId to RevCommit") {
-      val commit = firstCommit
+      val commit: RevCommit = firstCommit
       repository.toCommit(commit.getId) should equal (commit)
     }
   }
@@ -87,22 +88,20 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
 
   describe("resetToOriginalBranch") {
     it("should checkout master") {
-      repository.resetToOriginalBranch()
+      repository.resetToOriginalBranch(repository.head)
       repository.repository.getBranch should equal ("master")
     }
-    it("should not change HEAD") {
+    it("should back to specified commit") {
+      val first = firstCommit
       secondCommit
-      val beforeHead = repository.resolve(Constants.HEAD)
-      repository.resetToOriginalBranch()
-      val afterHead = repository.resolve(Constants.HEAD)
-      afterHead should equal (beforeHead)
+      repository.resetToOriginalBranch(first)
+      repository.head should equal (first.id)
     }
     it("should delete working branch") {
-      secondCommit
+      val last = secondCommit
       val workBranch = repository.repository.getBranch
-      repository.resetToOriginalBranch()
-      val afterHead = repository.resolve(workBranch)
-      afterHead should be (None)
+      repository.resetToOriginalBranch(last)
+      repository.resolve(workBranch) should be (None)
     }
   }
 }
