@@ -30,14 +30,14 @@ class GitRepository(rootPath: File) {
     build()
 
   // setup diff formatter
-  lazy val diffStream = new ByteArrayOutputStream
-  lazy val diffFormatter = new DiffFormatter(diffStream)
+  private[this] lazy val diffStream = new ByteArrayOutputStream
+  private[this] lazy val diffFormatter = new DiffFormatter(diffStream)
   diffFormatter.setRepository(repository)
 
   // setup work branch
-  private val originalBranch = repository.getFullBranch
-  private lazy val workBranch = "uchronie" + System.currentTimeMillis()
-  val command = git.checkout.setName(workBranch).setCreateBranch(true)
+  private[this] val originalBranch = repository.getFullBranch
+  private[this] lazy val workBranch = "uchronie" + System.currentTimeMillis()
+  private[this] val command = git.checkout.setName(workBranch).setCreateBranch(true)
   command.call()
   if (command.getResult.getStatus != CheckoutResult.Status.OK)
     throw new RuntimeException("Failed to initialize work branch")
@@ -48,9 +48,6 @@ class GitRepository(rootPath: File) {
     walk.markUninteresting(walk.parseCommit(start))
     walk.iterator().asScala.toList
   }
-
-  def abbreviate(objectId: AnyObjectId): AbbreviatedObjectId =
-    repository.getObjectDatabase.newReader.abbreviate(objectId)
 
   def resolve(ref: String): Option[ObjectId] = {
     try {

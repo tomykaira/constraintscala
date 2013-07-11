@@ -10,13 +10,6 @@ import org.scalatest.EitherValues._
 class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   lazy val commits = (1 to 10).map(dummyCommit).reverse.toList
   lazy val thread = CommitThread.fromCommits(commits)
-  lazy val notFound = dummyCommit(-1)
-
-  describe("Initialize CommitThread from dummy commits") {
-    it("should return Thread with commits") {
-      thread.commits should have length 10
-    }
-  }
 
   describe("composite new thread") {
     describe("rename") {
@@ -121,14 +114,6 @@ class CommitThreadSpec extends FunSpec with BeforeAndAfter with ShouldMatchers w
         val result = thread.applyOperation(DeleteOp(-1))
         result should equal (thread)
       }
-    }
-  }
-
-  describe("simplification") {
-    it("should simplify rename + rename") {
-      val result1 = thread.applyOperation(RenameOp(5, "New Message"))
-      val result2 = result1.applyOperation(RenameOp(5, "Next New Message"))
-      result2.commits(5) should equal (Rename(commits(5), "Next New Message"))
     }
   }
 

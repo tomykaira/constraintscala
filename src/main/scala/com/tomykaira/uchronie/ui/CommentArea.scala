@@ -1,13 +1,14 @@
-package com.tomykaira.uchronie
+package com.tomykaira.uchronie.ui
 
 import scala.swing.TextArea
 import com.tomykaira.constraintscala.{FSM, Constraint}
 import scala.swing.event.{Key, KeyReleased}
 import java.awt.event.InputEvent
 import javax.swing.text.DefaultCaret
-import com.tomykaira.uchronie.git.ArrangingGraph
+import com.tomykaira.uchronie.git.Operation
+import com.tomykaira.uchronie.{GraphFSM, TargetRange}
 
-class CommentArea(constraint: Constraint[Option[(ArrangingGraph, TargetRange)]]) extends TextArea {
+class CommentArea(fsm: GraphFSM, currentRange: Constraint[Option[TargetRange]]) extends TextArea {
   sealed trait MessageState
   case class NothingSelected() extends MessageState
   case class Selected(range: TargetRange, defaultMessage: String) extends MessageState
@@ -19,13 +20,13 @@ class CommentArea(constraint: Constraint[Option[(ArrangingGraph, TargetRange)]])
   tooltip = "Edit and Ctrl+Enter to update the commit message"
   peer.getCaret.asInstanceOf[DefaultCaret].setUpdatePolicy(DefaultCaret.UPDATE_WHEN_ON_EDT)
 
-  val messageFSM = new FSM[MessageState] {
+  private[this] val messageFSM = new FSM[MessageState] {
     state = NothingSelected()
   }
 
-  constraint.onChange({
-    case Some((graph, range)) =>
-      messageFSM.changeStateTo(Selected(range, graph.squashMessage(range.list)))
+  currentRange.onChange({
+    case Some(range) =>
+      messageFSM.changeStateTo(Selected(range, fsm.get.graph.squashMessage(range.list)))
     case None => messageFSM.changeStateTo(NothingSelected())
   })
 
@@ -40,6 +41,15 @@ class CommentArea(constraint: Constraint[Option[(ArrangingGraph, TargetRange)]])
     case Editing(_)  =>
       editable = true
       background = java.awt.Color.white
+  })
+
+  messageFSM.onChange({
+    case Committing(range, message) =>
+      if (range.isSingleton)
+        fsm.dispatch(Operation.RenameOp(range.start, message))
+      else
+        fsm.dispatch(Operation.SquashOp(range, Some(message)))
+    case _ =>
   })
 
   reactions += {

@@ -1,9 +1,7 @@
 package com.tomykaira.uchronie.git
 
 import org.eclipse.jgit.revwalk.RevCommit
-import scala.collection.mutable.ListBuffer
 import com.tomykaira.uchronie.{CherryPickFailure, GitRepository}
-import scalaz.NonEmptyList
 import scala.annotation.tailrec
 
 object CommitThread {
