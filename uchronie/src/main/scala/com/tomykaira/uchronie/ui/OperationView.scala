@@ -24,7 +24,7 @@ class OperationView(fsm: FSM[GraphState]) extends BorderPanel {
   }
 
   val applyButton = new Button("Apply") {
-    preferredSize = new Dimension(200, 50)
+    preferredSize = new Dimension(100, 50)
     maximumSize = preferredSize
     minimumSize = preferredSize
     tooltip = "Apply stacked changes to the repository"
@@ -38,7 +38,7 @@ class OperationView(fsm: FSM[GraphState]) extends BorderPanel {
   }
 
   val undoButton = new Button("Undo") {
-    preferredSize = new Dimension(200, 50)
+    preferredSize = new Dimension(100, 50)
     maximumSize = preferredSize
     minimumSize = preferredSize
     tooltip = "Undo a change"
