@@ -32,6 +32,7 @@ object Slider extends SimpleSwingApplication {
           val constraint = new Constraint[Int]({ slider.value })
           Binding.text(label, constraint)
           slider.reactions += { case e: ValueChanged => constraint.invalidate() }
+          constraint onChange { v => label.text = v.toString }
           contents += label
           contents += slider
           constraint
