@@ -3,6 +3,8 @@ package com.tomykaira.uchronie
 import org.scalatest.{BeforeAndAfter, FunSpec}
 import org.scalatest.matchers.ShouldMatchers
 import org.eclipse.jgit.revwalk.RevCommit
+import java.nio.file.Files
+import scala.sys.process._
 
 class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -92,6 +94,16 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
       val workBranch = repository.repository.getBranch
       repository.resetToOriginalBranch(last)
       repository.resolve(workBranch) should be (None)
+    }
+  }
+
+  describe("isClean") {
+    it("should handle buggy symlink as clean") {
+      createCommit("a", "A's content", "Create A")
+      Files.createSymbolicLink(repoRoot.toPath.resolve("b"), repoRoot.toPath.resolve("a"))
+      Process("git add b", Some(repoRoot)).!
+      Process(Seq("git", "commit", "-m", "Create B"), Some(repoRoot)).!
+      assert(repository.isClean)
     }
   }
 }

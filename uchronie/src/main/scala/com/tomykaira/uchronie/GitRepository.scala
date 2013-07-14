@@ -110,8 +110,17 @@ class GitRepository(rootPath: File) {
 
   def isClean: Boolean = {
     val result = status
+
+    // remove symlinks from modified list
+    // workaround for jgit problem
+    // https://git.eclipse.org/r/#/c/9379/
+    val modified = result.getModified.asScala filter { relativePath =>
+      val path = new File(repository.getWorkTree, relativePath)
+      path.getCanonicalFile == path.getAbsoluteFile
+    }
+
     result.getAdded.isEmpty && result.getChanged.isEmpty && result.getRemoved.isEmpty && result.getMissing.isEmpty &&
-      result.getModified.isEmpty && result.getConflicting.isEmpty
+      modified.isEmpty && result.getConflicting.isEmpty
   }
 
   def formatDiff(entry: DiffEntry): String = {
