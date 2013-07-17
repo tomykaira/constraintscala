@@ -16,8 +16,6 @@ libraryDependencies += "org.scala-lang" % "scala-swing" % "2.10.2"
 
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "3.0.0.201306101825-r"
 
-libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "3.0.0.201306101825-r"
-
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.1.4"
 
 libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.0.1"
