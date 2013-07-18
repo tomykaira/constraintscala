@@ -26,9 +26,9 @@ Checkout this project, open `sbt`, and type following commands.
 
     Multiple main classes detected, select one to run:
 
-     [1] com.tomykaira.constraintscala.demo.OtherSquare
-     [2] com.tomykaira.constraintscala.demo.Slider
-     [3] com.tomykaira.constraintscala.demo.Console
+     [1] io.github.tomykaira.constraintscala.demo.OtherSquare
+     [2] io.github.tomykaira.constraintscala.demo.Slider
+     [3] io.github.tomykaira.constraintscala.demo.Console
 
     Enter number:
 
