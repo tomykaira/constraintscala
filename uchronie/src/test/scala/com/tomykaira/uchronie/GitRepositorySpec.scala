@@ -95,6 +95,13 @@ class GitRepositorySpec extends FunSpec with BeforeAndAfter with ShouldMatchers 
       repository.resetToOriginalBranch(last)
       repository.resolve(workBranch) should be (None)
     }
+    it("should not reset if work is not started") {
+      val first = firstCommit
+      val repository = new GitRepository(dotGit)
+      addFile("foo", "bar")
+      repository.resetToOriginalBranch(first)
+      assert(!repository.isClean)
+    }
   }
 
   describe("isClean") {

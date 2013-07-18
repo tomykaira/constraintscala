@@ -42,25 +42,25 @@ object Main extends SimpleSwingApplication {
 
   override def main(args: Array[String]) {
     new ArgumentParser(args).parse match {
-      case Left(e) => initializationError(e, None)
+      case Left(e) => initializationError(e)
       case Right(parsed) =>
         repository = new GitRepository(parsed.repository)
         if (!repository.isClean)
-          initializationError("Repository is not clean.  Commit everything before start uchronie for safety.", Some(repository))
+          initializationError("Repository is not clean.  Commit everything before start uchronie for safety.")
         repository.resolve(parsed.start) match {
           case Some(id) => start = id
-          case None => initializationError("Start SHA-1 " + parsed.start + " is not resolved to one object id", Some(repository))
+          case None => initializationError("Start SHA-1 " + parsed.start + " is not resolved to one object id")
         }
         repository.resolve(parsed.end) match {
           case Some(id) => end = id
-          case None => initializationError("End SHA-1 " + parsed.end + " is not resolved to one object id", Some(repository))
+          case None => initializationError("End SHA-1 " + parsed.end + " is not resolved to one object id")
         }
     }
+    repository.startWork()
     super.main(args)
   }
 
-  def initializationError(message: String, repo: Option[GitRepository]) {
-    repo foreach { repo => repo.resetToOriginalBranch(repo.head) }
+  def initializationError(message: String) {
     System.err.println(message)
     System.exit(1)
   }

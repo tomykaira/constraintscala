@@ -29,6 +29,7 @@ trait GitSpecHelper {
       throw new GitSpecHelperException("Failed to initialize git repository under " + dir.toPath)
     git.commit.setMessage("Initialize repository").call()
     repository = new GitRepository(dotGit)
+    repository.startWork()
   }
 
   def git: Git = Git.open(dotGit)

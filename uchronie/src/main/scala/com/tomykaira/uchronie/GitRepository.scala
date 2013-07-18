@@ -37,10 +37,15 @@ class GitRepository(rootPath: File) {
   // setup work branch
   private[this] val originalBranch = repository.getFullBranch
   private[this] lazy val workBranch = "uchronie" + System.currentTimeMillis()
-  private[this] val command = git.checkout.setName(workBranch).setCreateBranch(true)
-  command.call()
-  if (command.getResult.getStatus != CheckoutResult.Status.OK)
-    throw new RuntimeException("Failed to initialize work branch")
+  private[this] var started = false
+
+  def startWork() {
+    val command = git.checkout.setName(workBranch).setCreateBranch(true)
+    command.call()
+    if (command.getResult.getStatus != CheckoutResult.Status.OK)
+      throw new RuntimeException("Failed to initialize work branch")
+    started = true
+  }
 
   def listCommits(start: ObjectId, end: ObjectId): List[RevCommit] = {
     val walk = new RevWalk(repository)
@@ -131,6 +136,8 @@ class GitRepository(rootPath: File) {
   }
 
   def resetToOriginalBranch(last: ObjectId) {
+    if (!started)
+      return
     resetHard(last)
     git.checkout().setName(originalBranch).call()
     resetHard(last)
