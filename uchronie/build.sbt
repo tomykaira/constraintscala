@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name := "Uchronie"
 
-organization := "com.tomykaira"
+organization := "io.github.tomykaira"
 
 version := "0.1.0-SNAPSHOT"
 
@@ -20,12 +20,12 @@ libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.1.4"
 
 libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.0.1"
 
-initialCommands := "import com.tomykaira.uchronie._"
+initialCommands := "import io.github.tomykaira.uchronie._"
 
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
 fork in run := true
 
-mainClass := Some("com.tomykaira.uchronie.Main")
+mainClass := Some("io.github.tomykaira.uchronie.Main")
 
 assemblySettings
