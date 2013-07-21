@@ -2,7 +2,6 @@ package io.github.tomykaira.uchronie.git
 
 import akka.actor.{Status, Actor}
 import io.github.tomykaira.uchronie.CherryPickFailure
-import io.github.tomykaira.uchronie.ui.EditManager
 
 class Worker extends Actor {
   def receive = {

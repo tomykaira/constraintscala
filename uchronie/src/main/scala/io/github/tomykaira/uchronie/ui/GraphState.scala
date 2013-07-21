@@ -1,6 +1,6 @@
 package io.github.tomykaira.uchronie.ui
 
-import io.github.tomykaira.uchronie.git.ArrangingGraph
+import io.github.tomykaira.uchronie.git.{EditManager, ArrangingGraph}
 
 sealed trait GraphState {
   val graph: ArrangingGraph
