@@ -16,11 +16,10 @@ class GraphFSM(repository: GitRepository, start: ObjectId, last: ObjectId) exten
 
   private[this] val system = ActorSystem("Worker")
   private[this] val actor = system.actorOf(Props[Worker])
+  private[this] implicit val timeout = Timeout(60.seconds)
 
   onChange {
     case GraphState.Applying(graph) =>
-      implicit val timeout = Timeout(60.seconds)
-
       val future = ask(actor, graph).mapTo[ArrangingGraph]
       future.onSuccess {
         case g: ArrangingGraph => changeStateTo(GraphState(g))
@@ -31,8 +30,10 @@ class GraphFSM(repository: GitRepository, start: ObjectId, last: ObjectId) exten
           Dialog.showMessage(title = "Error", message = err.getMessage)
       }
     case GraphState.Editing(manager) =>
-      val result = manager.run
-      changeStateTo(GraphState.Clean(result))
+      ask(actor, manager).mapTo[ArrangingGraph] onSuccess {
+        case result: ArrangingGraph.Clean =>
+          changeStateTo(GraphState.Clean(result))
+      }
     case _ =>
   }
 
