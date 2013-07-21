@@ -34,7 +34,7 @@ class CommitsController(fsm: GraphFSM, currentRange: Constraint[Option[TargetRan
     reactions += {
       case e: ButtonClicked => currentRange.get.foreach { range =>
         fsm changeState {
-          case GraphState.Clean(g) => GraphState.Editing(new EditManager(g, range))
+          case GraphState.Clean(g) => GraphState.Editing(new DialogEditManager(g, range))
         }
       }
     }

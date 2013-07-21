@@ -9,6 +9,8 @@ class Worker extends Actor {
       respondResult(g.applyCurrentThread)
     case g: ArrangingGraph.Clean =>
       respondResult(Right(g))
+    case manager: EditManager =>
+      respondResult(Right(manager.run))
   }
 
   def respondResult(result: Either[CherryPickFailure, ArrangingGraph]) {
