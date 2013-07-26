@@ -1,22 +1,24 @@
 package io.github.tomykaira.uchronie.git
 
-import akka.actor.{Status, Actor}
-import io.github.tomykaira.uchronie.CherryPickFailure
+import akka.actor.Actor
+
+case class Request(parcel: AnyRef, onSuccess: ArrangingGraph => Unit, onFailure: RuntimeException => Unit)
 
 class Worker extends Actor {
   def receive = {
-    case g: ArrangingGraph.Modified =>
-      respondResult(g.applyCurrentThread)
-    case g: ArrangingGraph.Clean =>
-      respondResult(Right(g))
-    case manager: EditManager =>
-      respondResult(Right(manager.run))
-  }
-
-  def respondResult(result: Either[CherryPickFailure, ArrangingGraph]) {
-    sender ! (result match {
-      case Right(graph) => Status.Success(graph)
-      case Left(failure) => Status.Failure(failure)
-    })
+    case Request(parcel, success, failure) =>
+      parcel match {
+        case g: ArrangingGraph.Modified =>
+          g.applyCurrentThread match {
+            case Right(graph) => success(graph)
+            case Left(err) => failure(err)
+          }
+        case g: ArrangingGraph.Clean =>
+          success(g)
+        case manager: EditManager =>
+          success(manager.run)
+        case _ =>
+          failure(new RuntimeException("Unknown request type"))
+      }
   }
 }
