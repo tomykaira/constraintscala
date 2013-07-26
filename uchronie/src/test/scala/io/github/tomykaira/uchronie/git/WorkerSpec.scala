@@ -5,11 +5,6 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{FunSpec, BeforeAndAfter}
 import akka.actor.{Props, ActorSystem}
 import org.scalatest.concurrent.AsyncAssertions.Waiter
-import akka.pattern.ask
-import akka.util.Timeout
-import scala.concurrent.duration._
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class WorkerSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with GitSpecHelper {
   before {
@@ -25,39 +20,43 @@ class WorkerSpec extends FunSpec with BeforeAndAfter with ShouldMatchers with Gi
     val system = ActorSystem("test")
     val actor = system.actorOf(Props[Worker])
     val w = new Waiter
-    def dispatch(g: ArrangingGraph): Future[ArrangingGraph] =
-      ask(actor, g).mapTo[ArrangingGraph]
-
-    implicit val timeout = Timeout(5.seconds)
   }
 
   trait Fixture extends Utilities {
     val commits = List(
       createCommit("A", "1st", "1st"),
-      createCommit("B", "2nd", "2nd"),
-      createCommit("C", "3rd", "3rd"),
-      createCommit("D", "4th", "4th"))
+      createCommit("A", "2nd", "2nd"),
+      createCommit("A", "3rd", "3rd"),
+      createCommit("A", "4th", "4th"))
   }
 
   describe("on receiving ArrangingGraph") {
     it("should apply the operations") {
       new Fixture {
         val modified = graph.transit(Operation.RenameOp(1, "New 3rd"))
-        dispatch(modified).onSuccess {
-          case newGraph =>
-            w { messages(newGraph) should equal (List("4th", "New 3rd", "2nd")) }
-            w.dismiss()
-        }
+        actor ! Request(modified, { g =>
+          w { messages(g) should equal (List("4th", "New 3rd", "2nd")) }
+          w.dismiss()
+        }, { _ => })
+        w.await()
+      }
+    }
+    it("report CherryPickFailed on failure") {
+      new Fixture {
+        val modified = graph.transit(Operation.DeleteOp(1))
+        actor ! Request(modified, { _ => }, { err =>
+          w { err.toString should include ("Cherry pick failed") }
+          w.dismiss()
+        })
         w.await()
       }
     }
     it("should return itself if clean") {
       new Fixture {
-        dispatch(graph).onSuccess {
-          case newGraph =>
-            w { newGraph should equal (graph) }
-            w.dismiss()
-        }
+        actor ! Request(graph, { g =>
+          w { g should equal (graph) }
+          w.dismiss()
+        }, { _ => })
         w.await()
       }
     }
