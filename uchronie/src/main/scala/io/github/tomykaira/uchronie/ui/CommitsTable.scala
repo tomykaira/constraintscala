@@ -87,6 +87,7 @@ class CommitsTable(fsm: GraphFSM) extends Table {
   peer.setTransferHandler(new CommitTransferHandler)
   peer.setDropMode(DropMode.INSERT_ROWS)
   peer.setDragEnabled(true)
+  peer.setDefaultRenderer(classOf[java.lang.String], new WipMarkupCellRenderer)
 
   class CommitTransferHandler extends TransferHandler {
     private[this] val flavor = new ActivationDataFlavor(classOf[Object], DataFlavor.javaJVMLocalObjectMimeType, "Part of ArrangingGraph object")
