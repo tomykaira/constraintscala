@@ -17,10 +17,15 @@ class WipMarkupCellRenderer extends DefaultTableCellRenderer {
 
     val comment = table.getModel.getValueAt(row, 1)
 
-    if (comment.asInstanceOf[String].startsWith("WIP:"))
-      base.setBackground(lightGreen)
-    else
-      base.setBackground(table.getBackground)
+    val color =
+      if (isSelected || hasFocus)
+        table.getSelectionBackground
+      else if (comment.asInstanceOf[String].startsWith("WIP:"))
+        lightGreen
+      else
+        table.getBackground
+
+    base.setBackground(color)
 
     base
   }
