@@ -4,10 +4,21 @@ import scala.swing._
 import org.eclipse.jgit.lib.ObjectId
 import io.github.tomykaira.uchronie.ui._
 import io.github.tomykaira.uchronie.ui.SwingHelper._
+import scala.collection.JavaConverters._
+import javax.swing.UIManager
 
 object Main extends SimpleSwingApplication {
   def top: Frame = new MainFrame() {
     title = "Uchronie"
+
+    private[this] val baseFont = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment.getAllFonts find { font =>
+      font.getName == "Ricty Regular"
+    } getOrElse font deriveFont(java.awt.Font.PLAIN, 14)
+
+    UIManager.getDefaults.entrySet().asScala foreach { entry =>
+      if (entry.getKey.toString.endsWith(".font"))
+        UIManager.put(entry.getKey, baseFont)
+    }
 
     private[this] val fsm = new GraphFSM(repository, start, end)
 
@@ -41,6 +52,9 @@ object Main extends SimpleSwingApplication {
   var end: ObjectId = _
 
   override def main(args: Array[String]) {
+    System.setProperty("awt.useSystemAAFontSettings", "on")
+    System.setProperty("swing.aatext", "true")
+
     new ArgumentParser(args).parse match {
       case Left(e) => initializationError(e)
       case Right(parsed) =>
