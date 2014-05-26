@@ -6,11 +6,11 @@ organization := "io.github.tomykaira"
 
 version := "0.2.0-SNAPSHOT"
 
-scalaVersion := "2.10.0"
+scalaVersion := "2.11.1"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % "2.1.7" % "test"
 
-libraryDependencies += "org.scala-lang" % "scala-swing" % "2.10.2"
+libraryDependencies += "org.scala-lang" % "scala-swing" % "2.11.0-M7"
 
 initialCommands := "import io.github.constraintscala._"
 
